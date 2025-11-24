@@ -23,7 +23,9 @@ const DEFAULT_SETTINGS: YouTubePluginSettings = {
     environmentPrefix: 'YTC',
     performanceMode: 'balanced',
     enableParallelProcessing: true,
-    preferMultimodal: true
+    preferMultimodal: true,
+    defaultMaxTokens: 4096, // Good balance for Gemini video processing
+    defaultTemperature: 0.5  // Balanced creativity vs consistency
 };
 
 export default class YoutubeClipperPlugin extends Plugin {
@@ -228,8 +230,10 @@ export default class YoutubeClipperPlugin extends Plugin {
                 onOpenFile: this.openFileByPath.bind(this),
                 ...(initialUrl && { initialUrl }),
                 providers,
-                defaultMaxTokens: 2048,
-                defaultTemperature: 0.7,
+                defaultProvider: 'gemini', // Prefer Gemini as default provider
+                defaultModel: 'gemini-2.5-pro', // Use the latest Gemini model
+                defaultMaxTokens: this.settings.defaultMaxTokens,
+                defaultTemperature: this.settings.defaultTemperature,
                 modelOptions: modelOptionsMap,
                 fetchModels: async () => {
                     try {

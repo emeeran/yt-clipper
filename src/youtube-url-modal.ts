@@ -58,6 +58,12 @@ export class YouTubeUrlModal extends BaseModal {
     private customPromptInput?: HTMLTextAreaElement;
     private customPromptContainer?: HTMLDivElement;
 
+    // Advanced settings drawer state
+    private isDrawerOpen = false;
+    private drawerToggle?: HTMLButtonElement;
+    private drawerContainer?: HTMLDivElement;
+    private drawerContent?: HTMLDivElement;
+
     // Performance settings
     private performanceMode: PerformanceMode = 'balanced';
     private enableParallelProcessing = false;
@@ -67,8 +73,8 @@ export class YouTubeUrlModal extends BaseModal {
     private multimodalToggle?: HTMLInputElement;
 
     // Model parameters
-    private maxTokens: number = 2048;
-    private temperature: number = 0.7;
+    private maxTokens: number = 4096;
+    private temperature: number = 0.5;
     private maxTokensSlider?: HTMLInputElement;
     private maxTokensValue?: HTMLSpanElement;
     private temperatureSlider?: HTMLInputElement;
@@ -93,8 +99,8 @@ export class YouTubeUrlModal extends BaseModal {
         this.preferMultimodal = options.preferMultimodal || false;
 
         // Initialize model parameters from options
-        this.maxTokens = options.defaultMaxTokens || 2048;
-        this.temperature = options.defaultTemperature || 0.7;
+        this.maxTokens = options.defaultMaxTokens || 4096;
+        this.temperature = options.defaultTemperature || 0.5;
     }
 
     onOpen(): void {
@@ -127,8 +133,7 @@ export class YouTubeUrlModal extends BaseModal {
         this.createUrlInputSection();
         this.createPerformanceSection();
         this.createFormatSelectionSection();
-        this.createProviderSelectionSection();
-        this.createModelParametersSection();
+        this.createAdvancedSettingsDrawer();
         this.createProgressSection();
         this.createActionButtons();
     }
@@ -1275,6 +1280,285 @@ export class YouTubeUrlModal extends BaseModal {
     }
 
     /**
+     * Create collapsible advanced settings drawer
+     */
+    private createAdvancedSettingsDrawer(): void {
+        // Create a simple button element
+        this.drawerToggle = this.contentEl.createEl('button');
+        this.drawerToggle.textContent = '🤖 Advanced AI Settings ▶';
+        this.drawerToggle.style.width = '100%';
+        this.drawerToggle.style.padding = '10px';
+        this.drawerToggle.style.margin = '10px 0';
+        this.drawerToggle.style.backgroundColor = 'var(--background-secondary)';
+        this.drawerToggle.style.border = '1px solid var(--background-modifier-border)';
+        this.drawerToggle.style.borderRadius = '5px';
+        this.drawerToggle.style.cursor = 'pointer';
+        this.drawerToggle.style.fontSize = '14px';
+        this.drawerToggle.style.fontWeight = 'bold';
+
+        // Create the content container
+        this.drawerContent = this.contentEl.createDiv();
+        this.drawerContent.style.display = 'none';
+        this.drawerContent.style.padding = '15px';
+        this.drawerContent.style.backgroundColor = 'var(--background-primary)';
+        this.drawerContent.style.border = '1px solid var(--background-modifier-border)';
+        this.drawerContent.style.borderRadius = '5px';
+        this.drawerContent.style.marginBottom = '10px';
+
+        // Add content to drawer
+        const title = this.drawerContent.createEl('h3');
+        title.textContent = 'AI Configuration';
+        title.style.marginBottom = '15px';
+
+        // Add provider dropdown
+        const providerLabel = this.drawerContent.createEl('label');
+        providerLabel.textContent = 'AI Provider:';
+        providerLabel.style.display = 'block';
+        providerLabel.style.marginBottom = '5px';
+
+        this.providerDropdown = this.drawerContent.createEl('select');
+        this.providerDropdown.style.width = '100%';
+        this.providerDropdown.style.padding = '5px';
+        this.providerDropdown.style.marginBottom = '10px';
+
+        this.options.providers.forEach(provider => {
+            const option = this.providerDropdown.createEl('option');
+            option.value = provider;
+            option.textContent = provider.charAt(0).toUpperCase() + provider.slice(1);
+        });
+
+        // Add model dropdown
+        const modelLabel = this.drawerContent.createEl('label');
+        modelLabel.textContent = 'Model:';
+        modelLabel.style.display = 'block';
+        modelLabel.style.marginBottom = '5px';
+
+        this.modelDropdown = this.drawerContent.createEl('select');
+        this.modelDropdown.style.width = '100%';
+        this.modelDropdown.style.padding = '5px';
+        this.modelDropdown.style.marginBottom = '10px';
+
+        // Add model options
+        const models = ['gemini-2.5-pro', 'gemini-1.5-pro', 'gpt-4', 'gpt-3.5-turbo'];
+        models.forEach(model => {
+            const option = this.modelDropdown.createEl('option');
+            option.value = model;
+            option.textContent = model;
+        });
+
+        // Add max tokens slider
+        const tokensLabel = this.drawerContent.createEl('label');
+        tokensLabel.textContent = 'Max Tokens: 4096';
+        tokensLabel.style.display = 'block';
+        tokensLabel.style.marginBottom = '5px';
+
+        this.maxTokensSlider = this.drawerContent.createEl('input');
+        this.maxTokensSlider.type = 'range';
+        this.maxTokensSlider.min = '256';
+        this.maxTokensSlider.max = '8192';
+        this.maxTokensSlider.value = '4096';
+        this.maxTokensSlider.style.width = '100%';
+        this.maxTokensSlider.style.marginBottom = '10px';
+
+        this.maxTokensSlider.addEventListener('input', (e) => {
+            const value = (e.target as HTMLInputElement).value;
+            tokensLabel.textContent = `Max Tokens: ${value}`;
+        });
+
+        // Add temperature slider
+        const tempLabel = this.drawerContent.createEl('label');
+        tempLabel.textContent = 'Temperature: 0.5';
+        tempLabel.style.display = 'block';
+        tempLabel.style.marginBottom = '5px';
+
+        this.temperatureSlider = this.drawerContent.createEl('input');
+        this.temperatureSlider.type = 'range';
+        this.temperatureSlider.min = '0';
+        this.temperatureSlider.max = '2';
+        this.temperatureSlider.step = '0.1';
+        this.temperatureSlider.value = '0.5';
+        this.temperatureSlider.style.width = '100%';
+
+        this.temperatureSlider.addEventListener('input', (e) => {
+            const value = (e.target as HTMLInputElement).value;
+            tempLabel.textContent = `Temperature: ${value}`;
+        });
+
+        // Simple click handler
+        this.drawerToggle.onclick = () => {
+            console.log('Drawer button clicked!');
+            if (this.drawerContent.style.display === 'none') {
+                this.drawerContent.style.display = 'block';
+                this.drawerToggle.textContent = '🤖 Advanced AI Settings ▼';
+            } else {
+                this.drawerContent.style.display = 'none';
+                this.drawerToggle.textContent = '🤖 Advanced AI Settings ▶';
+            }
+        };
+
+        // Also try event listener
+        this.drawerToggle.addEventListener('click', (e) => {
+            console.log('Click event fired!', e);
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    }
+
+    
+    /**
+     * Create provider selection section for drawer (modified version)
+     */
+    private createProviderSelectionSectionForDrawer(container: HTMLElement): void {
+        const sectionContainer = container.createDiv();
+        sectionContainer.style.padding = '12px';
+        sectionContainer.style.backgroundColor = 'var(--background-secondary)';
+        sectionContainer.style.borderRadius = '6px';
+        sectionContainer.style.border = '1px solid var(--background-modifier-border)';
+
+        const label = sectionContainer.createEl('label', { text: '🤖 AI Provider & Model:' });
+        label.setAttribute('for', 'ytc-provider-select');
+        label.style.display = 'block';
+        label.style.marginBottom = '8px';
+        label.style.fontWeight = '500';
+        label.style.color = 'var(--text-normal)';
+
+        const row = sectionContainer.createDiv();
+        row.style.display = 'flex';
+        row.style.gap = '8px';
+        row.style.alignItems = 'center';
+
+        // Provider select
+        this.providerSelect = document.createElement('select');
+        this.providerSelect.id = 'ytc-provider-select';
+        this.providerSelect.setAttribute('aria-label', 'AI Provider');
+        this.providerSelect.style.flex = '1';
+        this.providerSelect.style.padding = '4px 8px';
+        this.providerSelect.style.borderRadius = '4px';
+        this.providerSelect.style.border = '1px solid var(--background-modifier-border)';
+        row.appendChild(this.providerSelect);
+
+        // Model select
+        this.modelSelect = document.createElement('select');
+        this.modelSelect.setAttribute('aria-label', 'AI Model');
+        this.modelSelect.style.flex = '1';
+        this.modelSelect.style.padding = '4px 8px';
+        this.modelSelect.style.borderRadius = '4px';
+        this.modelSelect.style.border = '1px solid var(--background-modifier-border)';
+        row.appendChild(this.modelSelect);
+
+        // Refresh button
+        const refreshBtn = document.createElement('button');
+        refreshBtn.textContent = '🔄';
+        refreshBtn.style.padding = '4px 8px';
+        refreshBtn.style.borderRadius = '4px';
+        refreshBtn.style.border = '1px solid var(--background-modifier-border)';
+        refreshBtn.style.cursor = 'pointer';
+        refreshBtn.setAttribute('aria-label', 'Refresh model list');
+        refreshBtn.addEventListener('click', () => this.handleRefreshModels());
+        row.appendChild(refreshBtn);
+
+        // Refresh spinner
+        this.refreshSpinner = document.createElement('span');
+        this.refreshSpinner.textContent = '⏳';
+        this.refreshSpinner.style.display = 'none';
+        this.refreshSpinner.style.marginLeft = '4px';
+        row.appendChild(this.refreshSpinner);
+
+        // Setup provider/model event handlers
+        this.setupProviderModelHandlers();
+    }
+
+    /**
+     * Create model parameters section for drawer (modified version)
+     */
+    private createModelParametersSectionForDrawer(container: HTMLElement): void {
+        const paramsContainer = container.createDiv();
+        paramsContainer.className = 'ytc-model-params-section';
+        paramsContainer.style.padding = '12px';
+        paramsContainer.style.backgroundColor = 'var(--background-secondary)';
+        paramsContainer.style.borderRadius = '6px';
+        paramsContainer.style.border = '1px solid var(--background-modifier-border)';
+
+        const header = paramsContainer.createEl('h4');
+        header.textContent = '⚙️ Model Parameters';
+        header.style.margin = '0 0 12px 0';
+        header.style.fontSize = '0.95rem';
+        header.style.color = 'var(--text-normal)';
+
+        // Max Tokens
+        const maxTokensContainer = paramsContainer.createDiv();
+        maxTokensContainer.style.marginBottom = '12px';
+
+        const maxTokensLabel = maxTokensContainer.createDiv();
+        maxTokensLabel.textContent = 'Max Tokens: ' + this.maxTokens;
+        maxTokensLabel.style.fontSize = '0.85rem';
+        maxTokensLabel.style.fontWeight = '500';
+        maxTokensLabel.style.marginBottom = '6px';
+        maxTokensLabel.style.color = 'var(--text-normal)';
+
+        this.maxTokensSlider = document.createElement('input');
+        this.maxTokensSlider.type = 'range';
+        this.maxTokensSlider.min = '256';
+        this.maxTokensSlider.max = '8192';
+        this.maxTokensSlider.step = '256';
+        this.maxTokensSlider.value = this.maxTokens.toString();
+        this.maxTokensSlider.style.width = '100%';
+        this.maxTokensSlider.style.height = '4px';
+        this.maxTokensSlider.className = 'ytc-model-slider';
+        maxTokensContainer.appendChild(this.maxTokensSlider);
+
+        this.maxTokensValue = document.createElement('span');
+        this.maxTokensValue.textContent = this.maxTokens.toString();
+        this.maxTokensValue.style.fontSize = '0.8rem';
+        this.maxTokensValue.style.fontWeight = '600';
+        this.maxTokensValue.style.color = 'var(--text-accent)';
+        this.maxTokensValue.style.marginLeft = '8px';
+        maxTokensContainer.appendChild(this.maxTokensValue);
+
+        // Temperature
+        const tempContainer = paramsContainer.createDiv();
+
+        const tempLabel = tempContainer.createDiv();
+        tempLabel.textContent = 'Temperature: ' + this.temperature.toFixed(1);
+        tempLabel.style.fontSize = '0.85rem';
+        tempLabel.style.fontWeight = '500';
+        tempLabel.style.marginBottom = '6px';
+        tempLabel.style.color = 'var(--text-normal)';
+
+        this.temperatureSlider = document.createElement('input');
+        this.temperatureSlider.type = 'range';
+        this.temperatureSlider.min = '0';
+        this.temperatureSlider.max = '2';
+        this.temperatureSlider.step = '0.1';
+        this.temperatureSlider.value = this.temperature.toString();
+        this.temperatureSlider.style.width = '100%';
+        this.temperatureSlider.style.height = '4px';
+        this.temperatureSlider.className = 'ytc-model-slider';
+        tempContainer.appendChild(this.temperatureSlider);
+
+        this.temperatureValue = document.createElement('span');
+        this.temperatureValue.textContent = this.temperature.toFixed(1);
+        this.temperatureValue.style.fontSize = '0.8rem';
+        this.temperatureValue.style.fontWeight = '600';
+        this.temperatureValue.style.color = 'var(--text-accent)';
+        this.temperatureValue.style.marginLeft = '8px';
+        tempContainer.appendChild(this.temperatureValue);
+
+        // Scale labels
+        const scaleContainer = paramsContainer.createDiv();
+        scaleContainer.style.display = 'flex';
+        scaleContainer.style.justifyContent = 'space-between';
+        scaleContainer.style.fontSize = '0.75rem';
+        scaleContainer.style.color = 'var(--text-muted)';
+        scaleContainer.style.marginTop = '4px';
+        scaleContainer.createSpan({ text: 'Precise' });
+        scaleContainer.createSpan({ text: 'Creative' });
+
+        // Add slider event handlers
+        this.setupSliderEventHandlers();
+    }
+
+    /**
      * Create progress section
      */
     private createProgressSection(): void {
@@ -1378,6 +1662,73 @@ export class YouTubeUrlModal extends BaseModal {
         this.openButton.style.display = 'none';
 
         this.updateProcessButtonState();
+    }
+
+    /**
+     * Create button container for action buttons
+     */
+    private createButtonContainer(): HTMLElement {
+        const container = this.contentEl.createDiv();
+        container.style.display = 'flex';
+        container.style.justifyContent = 'center';
+        container.style.gap = '12px';
+        container.style.marginTop = '20px';
+        container.style.padding = '0 16px';
+        container.style.borderTop = '1px solid var(--background-modifier-border)';
+        container.style.backgroundColor = 'var(--background-primary)';
+        return container;
+    }
+
+    /**
+     * Create a button with consistent styling
+     */
+    private createButton(container: HTMLElement, text: string, isPrimary: boolean = false, onClick?: () => void): HTMLButtonElement {
+        const button = container.createEl('button');
+        button.textContent = text;
+        button.style.padding = '8px 16px';
+        button.style.borderRadius = '6px';
+        button.style.border = '1px solid';
+        button.style.cursor = 'pointer';
+        button.style.fontSize = '0.9rem';
+        button.style.fontWeight = '500';
+        button.style.transition = 'all 0.2s ease';
+
+        if (isPrimary) {
+            button.style.backgroundColor = 'var(--interactive-accent)';
+            button.style.color = 'var(--text-on-accent)';
+            button.style.borderColor = 'var(--interactive-accent)';
+        } else {
+            button.style.backgroundColor = 'var(--background-secondary)';
+            button.style.color = 'var(--text-normal)';
+            button.style.borderColor = 'var(--background-modifier-border)';
+        }
+
+        button.addEventListener('mouseenter', () => {
+            if (isPrimary) {
+                button.style.backgroundColor = 'var(--interactive-accent-hover)';
+            } else {
+                button.style.backgroundColor = 'var(--background-modifier-hover)';
+                button.style.borderColor = 'var(--interactive-accent)';
+            }
+        });
+
+        button.addEventListener('mouseleave', () => {
+            if (isPrimary) {
+                button.style.backgroundColor = 'var(--interactive-accent)';
+                button.style.color = 'var(--text-on-accent)';
+                button.style.borderColor = 'var(--interactive-accent)';
+            } else {
+                button.style.backgroundColor = 'var(--background-secondary)';
+                button.style.color = 'var(--text-normal)';
+                button.style.borderColor = 'var(--background-modifier-border)';
+            }
+        });
+
+        if (onClick) {
+            button.addEventListener('click', onClick);
+        }
+
+        return button;
     }
 
     /**

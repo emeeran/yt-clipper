@@ -17,6 +17,9 @@ export interface YouTubePluginSettings {
     customTimeouts?: CustomTimeoutSettings;
     enableParallelProcessing: boolean;
     preferMultimodal: boolean;
+    // Default AI model parameters
+    defaultMaxTokens: number;
+    defaultTemperature: number;
 }
 
 export type PerformanceMode = 'fast' | 'balanced' | 'quality';
