@@ -1559,7 +1559,16 @@ var ModalManager = class {
           this.resetModalState();
         }
       }, 1e4);
-      result._fallbackTimeout = fallbackTimeout;
+      if (result && typeof result === "object") {
+        result._fallbackTimeout = fallbackTimeout;
+      } else {
+        logger.debug("Modal result is not an object, clearing fallback timeout", "ModalManager", {
+          callId,
+          url,
+          resultType: typeof result
+        });
+        clearTimeout(fallbackTimeout);
+      }
       setTimeout(() => {
         logger.debug(`Modal state after 100ms`, "ModalManager", {
           callId,
@@ -3021,39 +3030,64 @@ var YouTubeSettingsTab = class extends import_obsidian6.PluginSettingTab {
     containerEl.empty();
     containerEl.addClass(SETTINGS_CSS_CLASSES.container);
     containerEl.setAttribute("data-plugin", "youtube-clipper");
-    this.createSimpleWorkingLayout();
+    containerEl.style.overflowY = "auto";
+    containerEl.style.maxHeight = "80vh";
+    containerEl.style.height = "fit-content";
+    containerEl.style.paddingRight = "8px";
+    containerEl.style.margin = "0";
+    containerEl.style.padding = "8px";
+    this.addScrollbarStyling();
+    this.createImprovedCompactLayout();
   }
   /**
-   * Create simple working layout
+   * Add custom scrollbar styling for better UX
    */
-  createSimpleWorkingLayout() {
+  addScrollbarStyling() {
+    if (document.getElementById("ytc-scrollbar-styles")) {
+      return;
+    }
+    const scrollbarStyle = document.createElement("style");
+    scrollbarStyle.id = "ytc-scrollbar-styles";
+    scrollbarStyle.textContent = `
+            .${SETTINGS_CSS_CLASSES.container}::-webkit-scrollbar {
+                width: 8px;
+            }
+
+            .${SETTINGS_CSS_CLASSES.container}::-webkit-scrollbar-track {
+                background: var(--background-primary);
+                border-radius: 4px;
+            }
+
+            .${SETTINGS_CSS_CLASSES.container}::-webkit-scrollbar-thumb {
+                background: var(--background-modifier-border);
+                border-radius: 4px;
+            }
+
+            .${SETTINGS_CSS_CLASSES.container}::-webkit-scrollbar-thumb:hover {
+                background: var(--interactive-accent);
+            }
+        `;
+    document.head.appendChild(scrollbarStyle);
+  }
+  /**
+   * Create improved compact and scollable layout
+   */
+  createImprovedCompactLayout() {
+    this.addCompactStyles();
     const { containerEl } = this;
     containerEl.style.display = "flex";
     containerEl.style.flexDirection = "column";
-    containerEl.style.height = "100%";
-    containerEl.style.gap = "12px";
-    containerEl.style.padding = "12px";
-    containerEl.style.overflow = "hidden";
+    containerEl.style.height = "fit-content";
+    containerEl.style.gap = "8px";
+    containerEl.style.padding = "8px";
+    containerEl.style.overflow = "visible";
     containerEl.style.backgroundColor = "var(--background-primary)";
-    this.createSimpleHeader();
+    this.createCompactHeader();
     const mainContent = containerEl.createDiv();
-    mainContent.style.display = "grid";
-    mainContent.style.gridTemplateColumns = "1fr 1fr";
-    mainContent.style.gap = "16px";
-    mainContent.style.flex = "1";
-    mainContent.style.overflow = "hidden";
-    const mediaQuery = window.matchMedia("(max-width: 800px)");
-    const updateLayout = (e) => {
-      if (e.matches) {
-        mainContent.style.gridTemplateColumns = "1fr";
-        mainContent.style.gap = "12px";
-      } else {
-        mainContent.style.gridTemplateColumns = "1fr 1fr";
-        mainContent.style.gap = "16px";
-      }
-    };
-    mediaQuery.addEventListener("change", updateLayout);
-    updateLayout(mediaQuery);
+    mainContent.style.display = "flex";
+    mainContent.style.flexDirection = "column";
+    mainContent.style.gap = "8px";
+    mainContent.style.width = "100%";
     this.createAPISettingsSection(mainContent);
     this.createAIParametersSection(mainContent);
     this.createFileSettingsSection(mainContent);
@@ -3061,28 +3095,70 @@ var YouTubeSettingsTab = class extends import_obsidian6.PluginSettingTab {
     this.createQuickStartSection(mainContent);
   }
   /**
-   * Create simple header
+   * Add compact styles to the document
    */
-  createSimpleHeader() {
+  addCompactStyles() {
+    if (document.getElementById("ytc-compact-styles")) {
+      return;
+    }
+    const compactStyle = document.createElement("style");
+    compactStyle.id = "ytc-compact-styles";
+    compactStyle.textContent = `
+            .${SETTINGS_CSS_CLASSES.container} .setting-item {
+                padding: 6px 4px !important;
+                margin: 2px 0 !important;
+            }
+            .${SETTINGS_CSS_CLASSES.container} .setting-item-name {
+                font-size: 0.85rem !important;
+                margin-bottom: 1px !important;
+            }
+            .${SETTINGS_CSS_CLASSES.container} .setting-item-description {
+                font-size: 0.75rem !important;
+                margin-bottom: 2px !important;
+            }
+            .${SETTINGS_CSS_CLASSES.container} input[type="text"] {
+                font-size: 0.8rem !important;
+                padding: 4px 6px !important;
+            }
+            .${SETTINGS_CSS_CLASSES.container} select {
+                font-size: 0.8rem !important;
+                padding: 4px 6px !important;
+            }
+            .${SETTINGS_CSS_CLASSES.container} button {
+                font-size: 0.75rem !important;
+                padding: 3px 8px !important;
+            }
+        `;
+    document.head.appendChild(compactStyle);
+  }
+  /**
+   * Create compact header
+   */
+  createCompactHeader() {
     const { containerEl } = this;
     const header = containerEl.createDiv();
-    header.style.display = "flex";
-    header.style.alignItems = "center";
-    header.style.justifyContent = "space-between";
-    header.style.padding = "8px 12px";
-    header.style.background = "var(--background-secondary)";
-    header.style.borderRadius = "6px";
-    header.style.border = "1px solid var(--background-modifier-border)";
+    header.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 10px;
+            background: var(--background-secondary);
+            border-radius: 5px;
+            border: 1px solid var(--background-modifier-border);
+            margin-bottom: 6px;
+        `;
     const title = header.createEl("h2", {
-      text: "YouTubeClipper Settings",
-      style: "margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--text-normal);"
+      text: "YT Clipper Settings",
+      style: "margin: 0; font-size: 1rem; font-weight: 600; color: var(--text-normal);"
     });
     const hasValidConfig = this.validateConfiguration();
     const statusBadge = header.createDiv();
-    statusBadge.style.padding = "4px 12px";
-    statusBadge.style.borderRadius = "12px";
-    statusBadge.style.fontSize = "0.75rem";
-    statusBadge.style.fontWeight = "600";
+    statusBadge.style.cssText = `
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        `;
     if (hasValidConfig) {
       statusBadge.style.background = "var(--interactive-accent)";
       statusBadge.style.color = "var(--text-on-accent)";
@@ -3101,41 +3177,45 @@ var YouTubeSettingsTab = class extends import_obsidian6.PluginSettingTab {
     section.style.background = "var(--background-secondary)";
     section.style.border = "1px solid var(--background-modifier-border)";
     section.style.borderRadius = "6px";
-    section.style.padding = "12px";
+    section.style.padding = "6px";
     section.style.display = "flex";
     section.style.flexDirection = "column";
-    section.style.gap = "8px";
+    section.style.gap = "4px";
     const header = section.createEl("h3", {
-      text: "\u{1F511} API Configuration",
-      style: "margin: 0 0 6px 0; font-size: 0.9rem; font-weight: 600; color: var(--text-normal);"
+      text: "\u{1F511} API",
+      style: "margin: 0 0 3px 0; font-size: 0.85rem; font-weight: 600; color: var(--text-normal);"
+      // Smaller font
     });
-    new import_obsidian6.Setting(section).setName("Gemini API Key").setDesc("Google Gemini API key for content processing").addText((text) => text.setPlaceholder("AIza...").setValue(this.settings.geminiApiKey || "").onChange(async (value) => {
+    new import_obsidian6.Setting(section).setName("Gemi").setDesc("Key").addText((text) => text.setPlaceholder("AIza...").setValue(this.settings.geminiApiKey || "").onChange(async (value) => {
       await this.updateSetting("geminiApiKey", value);
-    }));
-    new import_obsidian6.Setting(section).setName("Groq API Key").setDesc("Groq API key for fast processing").addText((text) => text.setPlaceholder("gsk_...").setValue(this.settings.groqApiKey || "").onChange(async (value) => {
+    })).setClass("compact-setting");
+    new import_obsidian6.Setting(section).setName("Groq").setDesc("Key").addText((text) => text.setPlaceholder("gsk_...").setValue(this.settings.groqApiKey || "").onChange(async (value) => {
       await this.updateSetting("groqApiKey", value);
-    }));
+    })).setClass("compact-setting");
+    new import_obsidian6.Setting(section).setName("Ollm").setDesc("Key").addText((text) => text.setPlaceholder("key").setValue(this.settings.ollamaApiKey || "").onChange(async (value) => {
+      await this.updateSetting("ollamaApiKey", value);
+    })).setClass("compact-setting");
     const testDiv = section.createDiv();
-    testDiv.style.marginTop = "4px";
-    new import_obsidian6.Setting(testDiv).setName("Test Connection").setDesc("Verify API keys").addButton((btn) => btn.setButtonText("Test").onClick(async () => {
+    testDiv.style.marginTop = "2px";
+    new import_obsidian6.Setting(testDiv).setName("Test").setDesc("").addButton((btn) => btn.setButtonText("\u2713").onClick(async () => {
       btn.setDisabled(true);
-      btn.setButtonText("Testing...");
+      btn.setButtonText("...");
       try {
         await this.testAPIKeys();
-        btn.setButtonText("\u2713 Success");
+        btn.setButtonText("\u2713");
         setTimeout(() => {
-          btn.setButtonText("Test");
+          btn.setButtonText("\u2713");
           btn.setDisabled(false);
         }, 1500);
       } catch (error) {
-        btn.setButtonText("\u2717 Failed");
+        btn.setButtonText("\u2717");
         ErrorHandler.handle(error, "API key test failed", true);
         setTimeout(() => {
-          btn.setButtonText("Test");
+          btn.setButtonText("\u2713");
           btn.setDisabled(false);
         }, 1500);
       }
-    }));
+    })).setClass("compact-setting");
   }
   /**
    * Create AI parameters section with model defaults
@@ -3145,20 +3225,21 @@ var YouTubeSettingsTab = class extends import_obsidian6.PluginSettingTab {
     section.style.background = "var(--background-secondary)";
     section.style.border = "1px solid var(--background-modifier-border)";
     section.style.borderRadius = "6px";
-    section.style.padding = "12px";
+    section.style.padding = "6px";
     section.style.display = "flex";
     section.style.flexDirection = "column";
-    section.style.gap = "8px";
+    section.style.gap = "4px";
     const header = section.createEl("h3", {
-      text: "\u2699\uFE0F AI Model Defaults",
-      style: "margin: 0 0 4px 0; font-size: 0.9rem; font-weight: 600; color: var(--text-normal);"
+      text: "\u2699\uFE0F AI",
+      style: "margin: 0 0 3px 0; font-size: 0.85rem; font-weight: 600; color: var(--text-normal);"
+      // Smaller font
     });
     const styleSheet = document.createElement("style");
     styleSheet.textContent = `
             .ytc-slider {
                 width: 100% !important;
-                height: 8px !important;
-                border-radius: 4px !important;
+                height: 5px !important; /* Even thinner for compactness */
+                border-radius: 2px !important;
                 background: var(--interactive-normal) !important;
                 outline: none !important;
                 -webkit-appearance: none !important;
@@ -3171,52 +3252,46 @@ var YouTubeSettingsTab = class extends import_obsidian6.PluginSettingTab {
             .ytc-slider::-webkit-slider-thumb {
                 -webkit-appearance: none !important;
                 appearance: none !important;
-                width: 18px !important;
-                height: 18px !important;
+                width: 14px !important; /* Smaller thumb */
+                height: 14px !important;
                 background: var(--interactive-accent) !important;
                 border-radius: 50% !important;
                 cursor: pointer !important;
-                border: 2px solid var(--text-on-accent) !important;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+                border: 1px solid var(--text-on-accent) !important;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
             }
             .ytc-slider::-moz-range-thumb {
-                width: 18px !important;
-                height: 18px !important;
+                width: 14px !important;
+                height: 14px !important;
                 background: var(--interactive-accent) !important;
                 border-radius: 50% !important;
                 cursor: pointer !important;
-                border: 2px solid var(--text-on-accent) !important;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
-            }
-            .ytc-slider::-webkit-slider-thumb:hover {
-                transform: scale(1.1) !important;
-            }
-            .ytc-slider::-moz-range-thumb:hover {
-                transform: scale(1.1) !important;
+                border: 1px solid var(--text-on-accent) !important;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
             }
         `;
     document.head.appendChild(styleSheet);
     const createCompactSlider = (label, min, max, step, value, settingKey) => {
       const container = section.createDiv();
-      container.style.marginBottom = "6px";
+      container.style.marginBottom = "4px";
       const labelRow = container.createDiv();
       labelRow.style.display = "flex";
       labelRow.style.justifyContent = "space-between";
       labelRow.style.alignItems = "center";
-      labelRow.style.marginBottom = "4px";
+      labelRow.style.marginBottom = "2px";
       const labelText = labelRow.createSpan();
       labelText.textContent = label;
-      labelText.style.fontSize = "0.85rem";
+      labelText.style.fontSize = "0.75rem";
       labelText.style.fontWeight = "500";
       labelText.style.color = "var(--text-normal)";
       const valueText = labelRow.createSpan();
       valueText.textContent = value.toString();
-      valueText.style.fontSize = "0.8rem";
+      valueText.style.fontSize = "0.7rem";
       valueText.style.fontWeight = "600";
       valueText.style.color = "var(--interactive-accent)";
-      valueText.style.padding = "2px 6px";
+      valueText.style.padding = "1px 3px";
       valueText.style.background = "var(--background-primary)";
-      valueText.style.borderRadius = "4px";
+      valueText.style.borderRadius = "2px";
       valueText.style.border = "1px solid var(--interactive-accent)";
       const slider = container.createEl("input", { type: "range" });
       slider.className = "ytc-slider";
@@ -3234,7 +3309,7 @@ var YouTubeSettingsTab = class extends import_obsidian6.PluginSettingTab {
       return container;
     };
     createCompactSlider(
-      "Max Tokens",
+      "Tokens",
       256,
       8192,
       256,
@@ -3242,7 +3317,7 @@ var YouTubeSettingsTab = class extends import_obsidian6.PluginSettingTab {
       "defaultMaxTokens"
     );
     createCompactSlider(
-      "Temperature",
+      "Temp",
       0,
       2,
       0.1,
@@ -3252,15 +3327,15 @@ var YouTubeSettingsTab = class extends import_obsidian6.PluginSettingTab {
     const scaleDiv = section.createDiv();
     scaleDiv.style.display = "flex";
     scaleDiv.style.justifyContent = "space-between";
-    scaleDiv.style.fontSize = "0.7rem";
+    scaleDiv.style.fontSize = "0.6rem";
     scaleDiv.style.color = "var(--text-muted)";
     scaleDiv.style.marginTop = "-4px";
-    scaleDiv.style.padding = "0 4px";
-    scaleDiv.createSpan({ text: "Precise" });
-    scaleDiv.createSpan({ text: "Creative" });
-    new import_obsidian6.Setting(section).setName("Performance Mode").setDesc("Speed vs. quality balance").addDropdown((dropdown) => dropdown.addOption("fast", "Fast (10-30s)").addOption("balanced", "Balanced (30-60s)").addOption("quality", "Quality (60-120s)").setValue(this.settings.performanceMode || "balanced").onChange(async (value) => {
+    scaleDiv.style.padding = "0 1px";
+    scaleDiv.createSpan({ text: "P" });
+    scaleDiv.createSpan({ text: "C" });
+    new import_obsidian6.Setting(section).setName("Perf").setDesc("Mode").addDropdown((dropdown) => dropdown.addOption("fast", "F").addOption("balanced", "B").addOption("quality", "Q").setValue(this.settings.performanceMode || "balanced").onChange(async (value) => {
       await this.updateSetting("performanceMode", value);
-    }));
+    })).setClass("compact-setting");
   }
   /**
    * Create advanced settings section for moved options from modal
@@ -3270,20 +3345,21 @@ var YouTubeSettingsTab = class extends import_obsidian6.PluginSettingTab {
     section.style.background = "var(--background-secondary)";
     section.style.border = "1px solid var(--background-modifier-border)";
     section.style.borderRadius = "6px";
-    section.style.padding = "12px";
+    section.style.padding = "6px";
     section.style.display = "flex";
     section.style.flexDirection = "column";
-    section.style.gap = "8px";
+    section.style.gap = "3px";
     const header = section.createEl("h3", {
-      text: "\u2699\uFE0F Advanced Settings",
-      style: "margin: 0 0 4px 0; font-size: 0.9rem; font-weight: 600; color: var(--text-normal);"
+      text: "\u2699\uFE0F Adv",
+      style: "margin: 0 0 2px 0; font-size: 0.85rem; font-weight: 600; color: var(--text-normal);"
+      // Smaller font
     });
-    new import_obsidian6.Setting(section).setName("Enable Parallel Processing").setDesc("Process with multiple providers simultaneously for faster results").addToggle((toggle) => toggle.setValue(this.settings.enableParallelProcessing || false).onChange(async (value) => {
+    new import_obsidian6.Setting(section).setName("Parallel").setDesc("Multi").addToggle((toggle) => toggle.setValue(this.settings.enableParallelProcessing || false).onChange(async (value) => {
       await this.updateSetting("enableParallelProcessing", value);
-    }));
-    new import_obsidian6.Setting(section).setName("Prefer Multimodal Analysis").setDesc("Use video-capable models that can analyze both audio and visual content").addToggle((toggle) => toggle.setValue(this.settings.preferMultimodal || false).onChange(async (value) => {
+    })).setClass("compact-setting");
+    new import_obsidian6.Setting(section).setName("MM-Audio").setDesc("Vid").addToggle((toggle) => toggle.setValue(this.settings.preferMultimodal || false).onChange(async (value) => {
       await this.updateSetting("preferMultimodal", value);
-    }));
+    })).setClass("compact-setting");
   }
   /**
    * Create file settings section
@@ -3293,17 +3369,18 @@ var YouTubeSettingsTab = class extends import_obsidian6.PluginSettingTab {
     section.style.background = "var(--background-secondary)";
     section.style.border = "1px solid var(--background-modifier-border)";
     section.style.borderRadius = "6px";
-    section.style.padding = "12px";
+    section.style.padding = "6px";
     section.style.display = "flex";
     section.style.flexDirection = "column";
-    section.style.gap = "8px";
+    section.style.gap = "4px";
     const header = section.createEl("h3", {
-      text: "\u{1F4C1} File Configuration",
-      style: "margin: 0 0 4px 0; font-size: 0.9rem; font-weight: 600; color: var(--text-normal);"
+      text: "\u{1F4C1} Files",
+      style: "margin: 0 0 2px 0; font-size: 0.85rem; font-weight: 600; color: var(--text-normal);"
+      // Smaller font
     });
-    new import_obsidian6.Setting(section).setName("Output Path").setDesc("Folder for processed videos (relative to vault root)").addText((text) => text.setPlaceholder("YouTube/Processed Videos").setValue(this.settings.outputPath || "YouTube/Processed Videos").onChange(async (value) => {
+    new import_obsidian6.Setting(section).setName("Path").setDesc("Out").addText((text) => text.setPlaceholder("YT/Proc").setValue(this.settings.outputPath || "YouTube/Processed Videos").onChange(async (value) => {
       await this.updateSetting("outputPath", value);
-    }));
+    })).setClass("compact-setting");
   }
   /**
    * Validate entire configuration
@@ -3328,59 +3405,62 @@ var YouTubeSettingsTab = class extends import_obsidian6.PluginSettingTab {
     section.style.background = "var(--background-secondary)";
     section.style.border = "1px solid var(--background-modifier-border)";
     section.style.borderRadius = "6px";
-    section.style.padding = "12px";
+    section.style.padding = "6px";
     section.style.display = "flex";
     section.style.flexDirection = "column";
-    section.style.gap = "8px";
+    section.style.gap = "3px";
     const header = section.createEl("h3", {
-      text: "\u{1F680} Quick Start",
-      style: "margin: 0 0 4px 0; font-size: 0.9rem; font-weight: 600; color: var(--text-normal);"
+      text: "\u{1F680} Go",
+      style: "margin: 0 0 2px 0; font-size: 0.8rem; font-weight: 600; color: var(--text-normal);"
+      // Smaller font
     });
     const stepsDiv = section.createDiv();
-    stepsDiv.style.fontSize = "0.8rem";
-    stepsDiv.style.lineHeight = "1.4";
+    stepsDiv.style.fontSize = "0.7rem";
+    stepsDiv.style.lineHeight = "1.2";
     const steps = [
-      "Add API key (Gemini/Groq)",
-      "Configure AI defaults",
-      "Click video icon or paste URL",
-      "Process video to create notes"
+      "API (G/G)",
+      "Cfg",
+      "URL",
+      "Go"
     ];
     steps.forEach((step, index) => {
       const stepDiv = stepsDiv.createDiv();
-      stepDiv.style.marginBottom = "4px";
+      stepDiv.style.marginBottom = "2px";
       stepDiv.style.display = "flex";
       stepDiv.style.alignItems = "flex-start";
-      stepDiv.style.gap = "6px";
+      stepDiv.style.gap = "3px";
       const stepNumber = stepDiv.createSpan();
       stepNumber.textContent = index + 1 + ".";
       stepNumber.style.color = "var(--interactive-accent)";
       stepNumber.style.fontWeight = "600";
-      stepNumber.style.minWidth = "16px";
+      stepNumber.style.minWidth = "10px";
       const stepText = stepDiv.createSpan();
       stepText.textContent = step;
     });
     const linksDiv = section.createDiv();
-    linksDiv.style.marginTop = "6px";
-    linksDiv.style.paddingTop = "8px";
+    linksDiv.style.marginTop = "3px";
+    linksDiv.style.paddingTop = "3px";
     linksDiv.style.borderTop = "1px solid var(--background-modifier-border)";
-    linksDiv.style.fontSize = "0.75rem";
+    linksDiv.style.fontSize = "0.65rem";
     linksDiv.style.color = "var(--text-muted)";
     const linksLabel = linksDiv.createSpan();
-    linksLabel.textContent = "Get API Keys: ";
+    linksLabel.textContent = "Keys: ";
     linksLabel.style.fontWeight = "500";
     const geminiLink = linksDiv.createEl("a", {
-      text: "Gemini",
+      text: "G",
       href: "https://aistudio.google.com/app/apikey",
       cls: "external-link"
     });
-    geminiLink.style.marginRight = "8px";
+    geminiLink.style.marginRight = "5px";
     geminiLink.style.color = "var(--link-color)";
+    geminiLink.style.fontSize = "0.65rem";
     const groqLink = linksDiv.createEl("a", {
-      text: "Groq",
+      text: "Gr",
       href: "https://console.groq.com/keys",
       cls: "external-link"
     });
     groqLink.style.color = "var(--link-color)";
+    groqLink.style.fontSize = "0.65rem";
   }
   /**
    * Test API keys for validity
@@ -3736,6 +3816,7 @@ var AIService = class {
   /**
    * Best-effort fetch of latest models for all providers by scraping known provider pages.
    * Returns a mapping providerName -> list of discovered models. Falls back to static mapping.
+   * Special handling for Ollama to query the actual running instance.
    */
   async fetchLatestModels() {
     const result = {};
@@ -3745,6 +3826,9 @@ var AIService = class {
         const models = await this.fetchLatestModelsForProvider(p);
         result[p] = models.length > 0 ? models : PROVIDER_MODEL_OPTIONS[p] ? PROVIDER_MODEL_OPTIONS[p].map((m) => typeof m === "string" ? m : m.name) : [];
       } catch (error) {
+        logger.error(`Error fetching models for ${p}`, "AIService", {
+          error: error instanceof Error ? error.message : String(error)
+        });
         result[p] = PROVIDER_MODEL_OPTIONS[p] ? PROVIDER_MODEL_OPTIONS[p].map((m) => typeof m === "string" ? m : m.name) : [];
       }
     }
@@ -3752,9 +3836,48 @@ var AIService = class {
   }
   /**
    * Fetch latest models for a single provider (best-effort scraping).
+   * Special handling for Ollama to query the actual running instance.
    */
   async fetchLatestModelsForProvider(providerName) {
     var _a;
+    if (providerName === "Ollama") {
+      try {
+        const defaultOllamaEndpoint = "http://localhost:11434";
+        const response = await fetch(`${defaultOllamaEndpoint}/api/tags`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json"
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.models && Array.isArray(data.models)) {
+            const modelNames = data.models.map((model) => {
+              if (model.name) {
+                return model.name;
+              } else if (model.id) {
+                return model.id;
+              }
+              return "";
+            }).filter((name) => name !== "");
+            logger.debug(`Fetched ${modelNames.length} models from local Ollama instance`, "AIService", {
+              models: modelNames.slice(0, 10)
+              // Log first 10 for debugging
+            });
+            return modelNames;
+          }
+        } else {
+          logger.warn(`Ollama instance not accessible at ${defaultOllamaEndpoint}, using static list`, "AIService");
+        }
+      } catch (error) {
+        logger.warn("Ollama instance not accessible, using static model list", "AIService", {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+      logger.debug("Using static Ollama models list", "AIService");
+      const fallbackModels = PROVIDER_MODEL_OPTIONS[providerName] ? PROVIDER_MODEL_OPTIONS[providerName].map((m) => typeof m === "string" ? m : m.name) : [];
+      return fallbackModels;
+    }
     const url = PROVIDER_MODEL_LIST_URLS[providerName];
     const regex = PROVIDER_MODEL_REGEX[providerName];
     if (!url || !regex) {
@@ -3812,33 +3935,45 @@ var AIService = class {
   /**
    * Process prompt with fallback support (original sequential method)
    */
-  async process(prompt) {
+  async process(prompt, images) {
     if (!prompt || typeof prompt !== "string") {
       throw new Error("Valid prompt is required");
     }
     if (this.settings.enableParallelProcessing) {
-      return this.processParallel(prompt);
+      return this.processParallel(prompt, images);
     }
-    return this.processSequential(prompt);
+    return this.processSequential(prompt, images);
   }
   /**
    * Process prompt with sequential fallback (original method)
    */
-  async processSequential(prompt) {
+  async processSequential(prompt, images) {
     let lastError = null;
     for (const provider of this.providers) {
       try {
         logger.info(`Attempting to process with ${provider.name}`, "AIService", {
           model: provider.model
         });
-        const content = await RetryService.withRetry(
-          () => provider.process(prompt),
-          `${provider.name}-process`,
-          2,
-          // 2 attempts per provider
-          2e3
-          // 2 second base delay
-        );
+        let content;
+        if (images && images.length > 0 && provider.processWithImage) {
+          content = await RetryService.withRetry(
+            () => provider.processWithImage(prompt, images),
+            `${provider.name}-process-multimodal`,
+            2,
+            // 2 attempts per provider
+            2e3
+            // 2 second base delay
+          );
+        } else {
+          content = await RetryService.withRetry(
+            () => provider.process(prompt),
+            `${provider.name}-process`,
+            2,
+            // 2 attempts per provider
+            2e3
+            // 2 second base delay
+          );
+        }
         if (content && content.trim().length > 0) {
           logger.info(`Successfully processed with ${provider.name}`, "AIService", {
             model: provider.model,
@@ -3869,11 +4004,16 @@ var AIService = class {
   /**
    * Process prompt with parallel provider racing for maximum speed
    */
-  async processParallel(prompt) {
+  async processParallel(prompt, images) {
     console.log("Starting parallel provider racing...");
     const providerPromises = this.providers.map(async (provider) => {
       try {
-        const content = await provider.processWithTimeout(prompt);
+        let content;
+        if (images && images.length > 0 && provider.processWithImage) {
+          content = await provider.processWithImage(prompt, images);
+        } else {
+          content = await provider.process(prompt);
+        }
         if (content && content.trim().length > 0) {
           return {
             content,
@@ -3914,7 +4054,7 @@ var AIService = class {
   /**
    * Process prompt using a specific provider name. Optionally override the model if supported.
    */
-  async processWith(providerName, prompt, overrideModel) {
+  async processWith(providerName, prompt, overrideModel, images) {
     const provider = this.providers.find((p) => p.name === providerName);
     if (!provider) {
       throw new Error(`AI provider not found: ${providerName}`);
@@ -3923,7 +4063,12 @@ var AIService = class {
       if (overrideModel && typeof provider.setModel === "function") {
         provider.setModel(overrideModel);
       }
-      const content = await provider.process(prompt);
+      let content;
+      if (images && images.length > 0 && provider.processWithImage) {
+        content = await provider.processWithImage(prompt, images);
+      } else {
+        content = await provider.process(prompt);
+      }
       if (content && content.trim().length > 0) {
         return { content, provider: provider.name, model: provider.model };
       }
@@ -4266,9 +4411,10 @@ var GroqProvider = class extends BaseAIProvider {
 // src/ollama.ts
 var OllamaProvider = class extends BaseAIProvider {
   constructor(apiKey = "", model, timeout, endpoint) {
-    super(apiKey || "ollama", model || "qwen3-coder:480b-cloud", timeout);
+    super(apiKey, model || "qwen3-coder:480b-cloud", timeout);
     this.name = "Ollama";
     this.ollamaEndpoint = endpoint || "http://localhost:11434";
+    this.apiKey = apiKey || void 0;
   }
   async process(prompt) {
     try {
@@ -4305,6 +4451,77 @@ var OllamaProvider = class extends BaseAIProvider {
         throw new Error("Invalid response format from Ollama API");
       }
       return this.extractContent(data);
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes("fetch") || error.message.includes("network") || error.message.includes("ECONNREFUSED") || error.message.includes("ENOTFOUND")) {
+          throw new Error("Ollama server is not running or unreachable. Please ensure Ollama is installed and running on your system.");
+        }
+        throw error;
+      }
+      throw new Error(`Ollama processing failed: ${error}`);
+    }
+  }
+  /**
+   * Process with image support for multimodal models
+   * Note: This is prepared for potential image processing, though it would require special handling in browser
+   */
+  async processWithImage(prompt, images) {
+    try {
+      if (!prompt || prompt.trim().length === 0) {
+        throw new Error("Prompt cannot be empty");
+      }
+      const messages = [
+        { role: "user", content: prompt }
+      ];
+      if (images && images.length > 0) {
+        const processedImages = [];
+        for (const img of images) {
+          if (typeof img === "string") {
+            processedImages.push(img);
+          } else if (img instanceof ArrayBuffer) {
+            const bytes = new Uint8Array(img);
+            let binary = "";
+            for (let i = 0; i < bytes.length; i++) {
+              binary += String.fromCharCode(bytes[i]);
+            }
+            const base64 = btoa(binary);
+            processedImages.push(base64);
+          }
+        }
+        if (processedImages.length > 0) {
+          messages[0].images = processedImages;
+        }
+      }
+      const requestBody = {
+        model: this._model,
+        messages,
+        stream: false,
+        options: {
+          temperature: this._temperature,
+          num_predict: this._maxTokens
+        }
+      };
+      const response = await fetch(`${this.ollamaEndpoint}/api/chat`, {
+        method: "POST",
+        headers: this.createHeaders(),
+        body: JSON.stringify(requestBody)
+      });
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error(`Ollama model not found: ${this._model}. Please make sure the model is pulled in Ollama using 'ollama pull ${this._model}'.`);
+        }
+        if (response.status === 500) {
+          const errorData = await this.safeJsonParse(response);
+          const errorMessage = (errorData == null ? void 0 : errorData.error) || "Ollama server error";
+          throw new Error(`Ollama error: ${errorMessage}`);
+        }
+        throw new Error(`Ollama API error: ${response.status} - ${response.statusText}`);
+      }
+      const data = await response.json();
+      if (!this.validateResponse(data, ["message", "content"])) {
+        throw new Error("Invalid response format from Ollama API");
+      }
+      return this.extractContentFromChat(data);
     } catch (error) {
       if (error instanceof Error) {
         if (error.message.includes("fetch") || error.message.includes("network") || error.message.includes("ECONNREFUSED") || error.message.includes("ENOTFOUND")) {
@@ -4353,9 +4570,13 @@ var OllamaProvider = class extends BaseAIProvider {
     }
   }
   createHeaders() {
-    return {
+    const headers = {
       "Content-Type": "application/json"
     };
+    if (this.apiKey) {
+      headers["Authorization"] = `Bearer ${this.apiKey}`;
+    }
+    return headers;
   }
   createRequestBody(prompt) {
     return {};
@@ -4363,6 +4584,12 @@ var OllamaProvider = class extends BaseAIProvider {
   extractContent(response) {
     if (response && typeof response === "object" && "response" in response) {
       return response.response.trim();
+    }
+    return "";
+  }
+  extractContentFromChat(response) {
+    if (response && typeof response === "object" && response.message && "content" in response.message) {
+      return response.message.content.trim();
     }
     return "";
   }
@@ -5511,7 +5738,7 @@ var ServiceContainer = class {
       if (this.settings.groqApiKey) {
         providers.push(new GroqProvider(this.settings.groqApiKey));
       }
-      providers.push(new OllamaProvider());
+      providers.push(new OllamaProvider(this.settings.ollamaApiKey || ""));
       this._aiService = new AIService(providers, this.settings);
     }
     return this._aiService;
@@ -5565,6 +5792,8 @@ var PLUGIN_VERSION = "1.3.5";
 var DEFAULT_SETTINGS = {
   geminiApiKey: "",
   groqApiKey: "",
+  ollamaApiKey: "",
+  // Add Ollama API key
   outputPath: "YouTube/Processed Videos",
   useEnvironmentVariables: false,
   environmentPrefix: "YTC",
@@ -5830,7 +6059,7 @@ var YoutubeClipperPlugin = class extends import_obsidian8.Plugin {
       let aiResponse;
       try {
         if (providerName) {
-          aiResponse = await aiService.processWith(providerName, prompt, model);
+          aiResponse = await aiService.processWith(providerName, prompt, model, void 0);
         } else {
           aiResponse = await aiService.process(prompt);
         }

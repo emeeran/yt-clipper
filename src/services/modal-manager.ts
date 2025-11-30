@@ -125,8 +125,18 @@ export class ModalManager {
                 }
             }, 10000);
 
-            // Store timeout for potential cleanup
-            (result as any)._fallbackTimeout = fallbackTimeout;
+            // Store timeout for potential cleanup (with safety check)
+            if (result && typeof result === 'object') {
+                (result as any)._fallbackTimeout = fallbackTimeout;
+            } else {
+                // If result is not an object, clear the timeout to prevent memory leaks
+                logger.debug('Modal result is not an object, clearing fallback timeout', 'ModalManager', {
+                    callId,
+                    url,
+                    resultType: typeof result
+                });
+                clearTimeout(fallbackTimeout);
+            }
 
             // Add check to see if modal state changes immediately
             setTimeout(() => {

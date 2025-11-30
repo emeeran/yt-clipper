@@ -59,16 +59,26 @@ export class AIService implements IAIService {
     /**
      * Best-effort fetch of latest models for all providers by scraping known provider pages.
      * Returns a mapping providerName -> list of discovered models. Falls back to static mapping.
+     * Special handling for Ollama to query the actual running instance.
      */
     async fetchLatestModels(): Promise<Record<string, string[]>> {
         const result: Record<string, string[]> = {};
         const providers = this.getProviderNames();
+
         for (const p of providers) {
             try {
                 const models = await this.fetchLatestModelsForProvider(p);
-                result[p] = models.length > 0 ? models : (PROVIDER_MODEL_OPTIONS[p] ? (PROVIDER_MODEL_OPTIONS[p] as any[]).map(m => typeof m === 'string' ? m : m.name) : []);
+                result[p] = models.length > 0 ? models :
+                    (PROVIDER_MODEL_OPTIONS[p] ?
+                        (PROVIDER_MODEL_OPTIONS[p] as any[]).map(m => typeof m === 'string' ? m : m.name) :
+                        []);
             } catch (error) {
-                result[p] = PROVIDER_MODEL_OPTIONS[p] ? (PROVIDER_MODEL_OPTIONS[p] as any[]).map(m => typeof m === 'string' ? m : m.name) : [];
+                logger.error(`Error fetching models for ${p}`, 'AIService', {
+                    error: error instanceof Error ? error.message : String(error)
+                });
+                result[p] = PROVIDER_MODEL_OPTIONS[p] ?
+                    (PROVIDER_MODEL_OPTIONS[p] as any[]).map(m => typeof m === 'string' ? m : m.name) :
+                    [];
             }
         }
         return result;
@@ -76,8 +86,63 @@ export class AIService implements IAIService {
 
     /**
      * Fetch latest models for a single provider (best-effort scraping).
+     * Special handling for Ollama to query the actual running instance.
      */
     async fetchLatestModelsForProvider(providerName: string): Promise<string[]> {
+        // Special handling for Ollama to query the actual running instance
+        if (providerName === 'Ollama') {
+            try {
+                // Instead of trying to access the internal provider, make direct API call to Ollama
+                // Assuming Ollama is running on default endpoint
+                const defaultOllamaEndpoint = 'http://localhost:11434';
+
+                // Try to get available models from Ollama instance
+                const response = await fetch(`${defaultOllamaEndpoint}/api/tags`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    if (data && data.models && Array.isArray(data.models)) {
+                        // Extract model names from Ollama's response format
+                        const modelNames = data.models.map((model: any) => {
+                            if (model.name) {
+                                return model.name;
+                            } else if (model.id) {
+                                // Fallback to id if name is not available
+                                return model.id;
+                            }
+                            return '';
+                        }).filter((name: string) => name !== '');
+
+                        logger.debug(`Fetched ${modelNames.length} models from local Ollama instance`, 'AIService', {
+                            models: modelNames.slice(0, 10) // Log first 10 for debugging
+                        });
+
+                        return modelNames;
+                    }
+                } else {
+                    logger.warn(`Ollama instance not accessible at ${defaultOllamaEndpoint}, using static list`, 'AIService');
+                }
+            } catch (error) {
+                logger.warn('Ollama instance not accessible, using static model list', 'AIService', {
+                    error: error instanceof Error ? error.message : String(error)
+                });
+            }
+
+            // If Ollama is not available or fails to fetch, return static options as fallback
+            logger.debug('Using static Ollama models list', 'AIService');
+            const fallbackModels = PROVIDER_MODEL_OPTIONS[providerName] ?
+                (PROVIDER_MODEL_OPTIONS[providerName] as any[]).map(m => typeof m === 'string' ? m : m.name) :
+                [];
+            return fallbackModels;
+        }
+
+        // For other providers, use the original web scraping approach
         const url = PROVIDER_MODEL_LIST_URLS[providerName];
         const regex = PROVIDER_MODEL_REGEX[providerName];
         if (!url || !regex) {
@@ -145,23 +210,23 @@ export class AIService implements IAIService {
     /**
      * Process prompt with fallback support (original sequential method)
      */
-    async process(prompt: string): Promise<AIResponse> {
+    async process(prompt: string, images?: (string | ArrayBuffer)[]): Promise<AIResponse> {
         if (!prompt || typeof prompt !== 'string') {
             throw new Error('Valid prompt is required');
         }
 
         // Use parallel processing if enabled
         if (this.settings.enableParallelProcessing) {
-            return this.processParallel(prompt);
+            return this.processParallel(prompt, images);
         }
 
-        return this.processSequential(prompt);
+        return this.processSequential(prompt, images);
     }
 
     /**
      * Process prompt with sequential fallback (original method)
      */
-    private async processSequential(prompt: string): Promise<AIResponse> {
+    private async processSequential(prompt: string, images?: (string | ArrayBuffer)[]): Promise<AIResponse> {
         let lastError: Error | null = null;
 
         // Try each provider in order
@@ -171,12 +236,23 @@ export class AIService implements IAIService {
                     model: provider.model
                 });
 
-                const content = await RetryService.withRetry(
-                    () => provider.process(prompt),
-                    `${provider.name}-process`,
-                    2, // 2 attempts per provider
-                    2000 // 2 second base delay
-                );
+                let content: string;
+                // Use multimodal processing if images are provided and supported
+                if (images && images.length > 0 && provider.processWithImage) {
+                    content = await RetryService.withRetry(
+                        () => provider.processWithImage!(prompt, images),
+                        `${provider.name}-process-multimodal`,
+                        2, // 2 attempts per provider
+                        2000 // 2 second base delay
+                    );
+                } else {
+                    content = await RetryService.withRetry(
+                        () => provider.process(prompt),
+                        `${provider.name}-process`,
+                        2, // 2 attempts per provider
+                        2000 // 2 second base delay
+                    );
+                }
 
                 if (content && content.trim().length > 0) {
                     logger.info(`Successfully processed with ${provider.name}`, 'AIService', {
@@ -217,12 +293,20 @@ export class AIService implements IAIService {
     /**
      * Process prompt with parallel provider racing for maximum speed
      */
-    private async processParallel(prompt: string): Promise<AIResponse> {
+    private async processParallel(prompt: string, images?: (string | ArrayBuffer)[]): Promise<AIResponse> {
         console.log('Starting parallel provider racing...');
 
         const providerPromises = this.providers.map(async (provider) => {
             try {
-                const content = await (provider as any).processWithTimeout(prompt);
+                let content: string;
+                // Use multimodal processing if images are provided and supported
+                if (images && images.length > 0 && provider.processWithImage) {
+                    // For parallel mode, we'll call processWithImage directly with timeout
+                    content = await provider.processWithImage!(prompt, images);
+                } else {
+                    // For text-only processing, use the provider's timeout method
+                    content = await provider.process(prompt);
+                }
 
                 if (content && content.trim().length > 0) {
                     return {
@@ -277,19 +361,27 @@ export class AIService implements IAIService {
     /**
      * Process prompt using a specific provider name. Optionally override the model if supported.
      */
-    async processWith(providerName: string, prompt: string, overrideModel?: string): Promise<AIResponse> {
+    async processWith(providerName: string, prompt: string, overrideModel?: string, images?: (string | ArrayBuffer)[]): Promise<AIResponse> {
         const provider = this.providers.find(p => p.name === providerName);
         if (!provider) {
             throw new Error(`AI provider not found: ${providerName}`);
         }
 
-        // If provider supports setModel, apply override
         try {
+            // If provider supports setModel, apply override
             if (overrideModel && typeof (provider as any).setModel === 'function') {
                 (provider as any).setModel(overrideModel);
             }
 
-            const content = await provider.process(prompt);
+            let content: string;
+
+            // Check if the provider supports multimodal processing and images are provided
+            if (images && images.length > 0 && provider.processWithImage) {
+                content = await provider.processWithImage!(prompt, images);
+            } else {
+                content = await provider.process(prompt);
+            }
+
             if (content && content.trim().length > 0) {
                 return { content, provider: provider.name, model: provider.model };
             }

@@ -18,6 +18,7 @@ const PLUGIN_VERSION = '1.3.5';
 const DEFAULT_SETTINGS: YouTubePluginSettings = {
     geminiApiKey: '',
     groqApiKey: '',
+    ollamaApiKey: '', // Add Ollama API key
     outputPath: 'YouTube/Processed Videos',
     useEnvironmentVariables: false,
     environmentPrefix: 'YTC',
@@ -335,7 +336,7 @@ export default class YoutubeClipperPlugin extends Plugin {
             let aiResponse;
             try {
                 if (providerName) {
-                    aiResponse = await (aiService as any).processWith(providerName, prompt, model);
+                    aiResponse = await (aiService as any).processWith(providerName, prompt, model, undefined); // No images for now
                 } else {
                     aiResponse = await aiService.process(prompt);
                 }

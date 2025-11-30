@@ -7,6 +7,7 @@ import { App, TFile } from 'obsidian';
 export interface YouTubePluginSettings {
     geminiApiKey: string;
     groqApiKey: string;
+    ollamaApiKey: string; // Add Ollama API key
     outputPath: string;
     useEnvironmentVariables: boolean;
     environmentPrefix: string;
@@ -75,6 +76,7 @@ export interface AIProvider {
     readonly name: string;
     model: string;
     process(prompt: string): Promise<string>;
+    processWithImage?(prompt: string, images?: (string | ArrayBuffer)[]): Promise<string>;
     setModel?(model: string): void;
     setTimeout?(timeout: number): void;
     setMaxTokens?(maxTokens: number): void;
@@ -136,8 +138,8 @@ export interface ServiceContainer {
 }
 
 export interface AIService {
-    process(prompt: string): Promise<AIResponse>;
-    processWith(providerName: string, prompt: string, overrideModel?: string): Promise<AIResponse>;
+    process(prompt: string, images?: (string | ArrayBuffer)[]): Promise<AIResponse>;
+    processWith(providerName: string, prompt: string, overrideModel?: string, images?: (string | ArrayBuffer)[]): Promise<AIResponse>;
     getProviderNames(): string[];
     getProviderModels(providerName: string): string[];
     fetchLatestModels(): Promise<Record<string, string[]>>;

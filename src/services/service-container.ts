@@ -49,9 +49,9 @@ export class ServiceContainer implements IServiceContainer {
                 providers.push(new GroqProvider(this.settings.groqApiKey));
             }
 
-            // Add Ollama provider (doesn't require API key)
+            // Add Ollama provider (doesn't require API key, but can use it if provided)
             // We add it always so it appears in dropdowns, but processing will check availability
-            providers.push(new OllamaProvider());
+            providers.push(new OllamaProvider(this.settings.ollamaApiKey || ''));
 
             this._aiService = new AIService(providers, this.settings);
         }
