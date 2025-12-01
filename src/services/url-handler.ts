@@ -3,7 +3,7 @@
  */
 
 import { App, TFile } from 'obsidian';
-import { logger } from './logger';
+import { logger } from './logging-service';
 import { ValidationUtils } from '../validation';
 import { YouTubePluginSettings } from '../types/types';
 

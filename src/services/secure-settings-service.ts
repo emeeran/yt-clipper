@@ -4,7 +4,7 @@
 
 import { YouTubePluginSettings } from '../types/types';
 import { EncryptionService } from './encryption-service';
-import { logger } from './logger';
+import { logger } from './logging-service';
 
 export interface SecureSettingsConfig {
     encryptApiKeys: boolean;

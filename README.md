@@ -1,25 +1,25 @@
-# 🎬 YouTube Processor - Complete Documentation & Vibe-Code
+# 🎬 YouTube Clipper - AI-Powered Video Processing for Obsidian
 
-> **Transform YouTube videos into actionable Obsidian notes with AI-powered analysis and comprehensive security**
+> **Transform YouTube videos into structured notes with advanced AI analysis**
 
-[![Plugin Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/emeeran/youtube-clipper)
+[![Plugin Version](https://img.shields.io/badge/version-1.3.5-blue.svg)](https://github.com/emeeran/youtube-clipper)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-4.9+-blue.svg)](https://www.typescriptlang.org/)
-[![Security](https://img.shields.io/badge/security-Enterprise%20Level-brightgreen.svg)](SECURITY.md)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3+-blue.svg)](https://www.typescriptlang.org/)
+[![Security](https://img.shields.io/badge/security-Advanced-brightgreen.svg)](SECURITY.md)
 
-## 🚀 Quick Overview
+## 🚀 Overview
 
-YouTube Processor is an advanced Obsidian plugin that extracts YouTube video content and transforms it into structured, actionable notes using multiple AI providers. It features enterprise-level security, professional formatting, and intelligent prompt engineering.
+YouTube Clipper is a lightweight yet powerful Obsidian plugin that extracts YouTube video content and transforms it into structured, actionable notes using multiple AI providers. It features advanced security, professional formatting, and intelligent prompt engineering while maintaining excellent performance.
 
 ### ✨ Key Features
 
-- **🎯 Dual Output Formats**: Executive summaries & step-by-step tutorials
-- **🤖 Multi-AI Support**: Google Gemini, Groq with intelligent provider selection
-- **🔒 Enterprise Security**: Local-only API key storage with comprehensive git protection
-- **📱 Professional UI**: Thumbnail previews, metadata extraction, clean modal interfaces
-- **⚡ Performance Optimized**: Parallel processing, multimodal preference, quality modes
-- **🎨 Rich Formatting**: YAML frontmatter, emoji icons, visual hierarchy
-- **📊 Processing History**: Complete tracking and management of processed videos
+- **🤖 Multi-AI Support**: Google Gemini, Groq, Ollama with intelligent provider selection
+- **🎯 Multiple Output Formats**: Executive summaries, detailed guides, custom formats
+- **🔒 Enhanced Security**: Secure API key storage with encryption
+- **📱 Professional UI**: Clean modal interfaces with video previews
+- **⚡ Performance Optimized**: Parallel processing and intelligent caching
+- **🎨 Rich Formatting**: YAML frontmatter, visual hierarchy, emoji icons
+- **📊 Chrome Extension**: Direct video capture from YouTube
 
 ---
 

@@ -2,7 +2,7 @@
  * Modal management service to prevent duplicate modal openings
  */
 
-import { logger } from './logger';
+import { logger } from './logging-service';
 
 export interface ModalState {
     isModalOpen: boolean;

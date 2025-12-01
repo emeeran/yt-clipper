@@ -2,7 +2,7 @@
  * Simple optimization service for plugin performance and health checks
  */
 
-import { logger } from './logger';
+import { logger } from './logging-service';
 import { performanceMonitor } from './performance-monitor';
 import { EncryptionService } from './encryption-service';
 import { YouTubePluginSettings } from '../types/types';

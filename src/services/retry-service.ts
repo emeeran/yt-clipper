@@ -2,7 +2,7 @@
  * Retry service for handling transient failures with exponential backoff
  */
 
-import { logger } from './logger';
+import { logger } from './logging-service';
 
 export interface RetryConfig {
     maxAttempts: number;

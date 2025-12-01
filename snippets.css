@@ -1,0 +1,75 @@
+/* YouTube Clipper Plugin - Fix [Image #X] Errors */
+
+/* Hide Obsidian's broken image placeholders */
+img[src=""], img:not([src]), img[src="#"] {
+    display: none;
+}
+
+/* Prevent Obsidian from showing [Image #X] for failed media */
+img[alt*="Image #"], img[alt^="Image #"]:not([src^="data:"]),
+iframe[src=""], iframe:not([src]), iframe[src="#"] {
+    display: none !important;
+}
+
+/* Hide broken iframe displays */
+iframe:broken, iframe:-moz-broken {
+    display: none !important;
+}
+
+/* Style for failed video embeds */
+.video-container {
+    position: relative;
+}
+
+.video-container iframe:not([src]),
+.video-container iframe[src=""],
+.video-container iframe[src="#"] {
+    display: none;
+}
+
+/* Fallback styling for video containers */
+.video-container::before {
+    content: '';
+    display: none;
+}
+
+.video-container:has(iframe:not([src]))::before {
+    content: '📺 Video Embed Unavailable';
+    display: block;
+    background: #f0f0f0;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    color: #666;
+    font-style: italic;
+}
+
+/* Prevent Obsidian image error overlay */
+.markdown-preview-view img[src^="data:"] {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Hide any empty image elements */
+.markdown-preview-view img[alt*="Image #"]:not([src]):not([src^="data:"]) {
+    display: none;
+}
+
+/* Style for video container fallbacks */
+.video-fallback {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 16px;
+    text-align: center;
+    color: #666;
+}
+
+.video-fallback a {
+    color: #0066cc;
+    text-decoration: none;
+}
+
+.video-fallback a:hover {
+    text-decoration: underline;
+}

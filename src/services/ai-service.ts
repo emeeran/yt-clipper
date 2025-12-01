@@ -8,7 +8,7 @@ import { ErrorHandler } from './error-handler';
 import { MESSAGES } from '../messages';
 import { PERFORMANCE_PRESETS, PerformanceOptimizer } from '../performance';
 import { RetryService, RetryService as Retry } from './retry-service';
-import { logger } from './logger';
+import { logger } from './logging-service';
 
 export class AIService implements IAIService {
     private providers: AIProvider[] = [];

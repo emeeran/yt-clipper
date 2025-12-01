@@ -2,7 +2,7 @@
  * Encryption service for secure storage of API keys and sensitive data
  */
 
-import { logger } from './logger';
+import { logger } from './logging-service';
 
 export interface EncryptionConfig {
     algorithm: string;

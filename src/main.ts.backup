@@ -1,8 +1,8 @@
 import { Notice, Plugin, TFile, WorkspaceLeaf } from 'obsidian';
 import { ConflictPrevention } from './conflict-prevention';
-import { MESSAGES } from './messages';
-import { ValidationUtils } from './validation';
-import { ErrorHandler, logger, LogLevel } from './services/logging-service';
+import { MESSAGES } from './utils/messages';
+import { ValidationUtils } from './utils/validation';
+import { logger, initializeLogger, LogLevel, ErrorHandler } from './services/logging-service';
 import { UrlHandler, UrlDetectionResult } from './services/url-handler';
 import { ModalManager } from './services/modal-manager';
 import { SaveConfirmationModal } from './ui/modals/save-confirmation-modal';
@@ -40,18 +40,39 @@ export default class YoutubeClipperPlugin extends Plugin {
     async onload(): Promise<void> {
         // Set plugin version
         this.manifest.version = PLUGIN_VERSION;
-        logger.info(`Initializing YoutubeClipper Plugin v${PLUGIN_VERSION}...`);
+        console.log(`🚀 Initializing YoutubeClipper Plugin v${PLUGIN_VERSION}...`);
 
         try {
+            console.log('📝 Step 1: Loading settings...');
             await this.loadSettings();
-            this.setupLogger();
-            await this.initializeServices();
-            this.registerUIComponents();
-            this.setupUrlHandling();
-            this.setupProtocolHandler();
+            console.log('✅ Settings loaded successfully');
 
-            logger.plugin('Plugin loaded successfully');
+            console.log('🔧 Step 2: Setting up logger...');
+            this.setupLogger();
+            console.log('✅ Logger setup completed');
+
+            console.log('🏗️ Step 3: Initializing services...');
+            await this.initializeServices();
+            console.log('✅ Services initialized successfully');
+
+            console.log('🎨 Step 4: Registering UI components...');
+            this.registerUIComponents();
+            console.log('✅ UI components registered');
+
+            console.log('🔗 Step 5: Setting up URL handling...');
+            this.setupUrlHandling();
+            console.log('✅ URL handling setup completed');
+
+            console.log('📡 Step 6: Setting up protocol handler...');
+            this.setupProtocolHandler();
+            console.log('✅ Protocol handler setup completed');
+
+            logger.plugin('🎉 Plugin loaded successfully');
+            console.log('🎉 YoutubeClipper Plugin fully loaded and ready!');
         } catch (error) {
+            console.error('❌ Failed to load plugin:', error);
+            console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+
             logger.error('Failed to load plugin', 'Plugin', {
                 error: error instanceof Error ? error.message : String(error)
             });
@@ -61,7 +82,7 @@ export default class YoutubeClipperPlugin extends Plugin {
     }
 
     onunload(): void {
-        logger.plugin('Unloading YoutubeClipper Plugin...');
+        console.log('Unloading YoutubeClipper Plugin...');
         this.isUnloading = true;
 
         try {
@@ -73,6 +94,7 @@ export default class YoutubeClipperPlugin extends Plugin {
 
             logger.plugin('Plugin unloaded successfully');
         } catch (error) {
+            console.error('❌ Error during plugin unload:', error);
             logger.error('Error during plugin unload', 'Plugin', {
                 error: error instanceof Error ? error.message : String(error)
             });
@@ -80,24 +102,43 @@ export default class YoutubeClipperPlugin extends Plugin {
     }
 
     private setupLogger(): void {
-        // Configure logger based on settings or environment
-        const isDev = process.env.NODE_ENV === 'development';
-        logger.updateConfig({
-            level: isDev ? LogLevel.DEBUG : LogLevel.INFO,
-            enableConsole: true,
-            enableFile: false,
-            maxLogEntries: 1000
-        });
+        try {
+            const isDev = process.env.NODE_ENV === 'development';
+            const initializedLogger = initializeLogger({
+                level: isDev ? LogLevel.DEBUG : LogLevel.INFO,
+                enableConsole: true,
+                enableFile: false,
+                maxLogEntries: 1000
+            });
+
+            console.log('✅ Logger initialized successfully');
+        } catch (error) {
+            console.error('❌ Failed to initialize logger:', error);
+        }
     }
 
     private async initializeServices(): Promise<void> {
-        this.serviceContainer = new ServiceContainer(this.settings, this.app);
-        this.modalManager = new ModalManager();
-        this.urlHandler = new UrlHandler(
-            this.app,
-            this.settings,
-            this.handleUrlDetection.bind(this)
-        );
+        try {
+            console.log('🏗️ Creating ServiceContainer...');
+            this.serviceContainer = new ServiceContainer(this.settings, this.app);
+            console.log('✅ ServiceContainer created');
+
+            console.log('🎭 Creating ModalManager...');
+            this.modalManager = new ModalManager();
+            console.log('✅ ModalManager created');
+
+            console.log('🔗 Creating UrlHandler...');
+            this.urlHandler = new UrlHandler(
+                this.app,
+                this.settings,
+                this.handleUrlDetection.bind(this)
+            );
+            console.log('✅ UrlHandler created');
+        } catch (error) {
+            console.error('❌ Error in initializeServices:', error);
+            console.error('❌ Services error stack:', error instanceof Error ? error.stack : 'No stack trace');
+            throw error;
+        }
     }
 
     private setupUrlHandling(): void {
@@ -118,18 +159,60 @@ export default class YoutubeClipperPlugin extends Plugin {
 
     private setupProtocolHandler(): void {
         try {
+            logger.info('Setting up obsidian://youtube-clipper protocol handler', 'Plugin');
+
+            // Check if registerObsidianProtocolHandler is available
+            if (!this.registerObsidianProtocolHandler) {
+                logger.warn('⚠️ registerObsidianProtocolHandler not available', 'Plugin');
+                new Notice('YouTube Clipper: Protocol handlers not supported in this Obsidian version');
+                return;
+            }
+
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore
-            this.registerObsidianProtocolHandler?.('youtube-clipper', (params: Record<string, string>) => {
-                this.urlHandler?.handleProtocol(params);
+            this.registerObsidianProtocolHandler('youtube-clipper', (params: Record<string, string>) => {
+                logger.info('🚀 Protocol handler invoked!', 'Plugin', {
+                    params,
+                    hasUrlHandler: !!this.urlHandler,
+                    pluginUnloading: this.isUnloading
+                });
+
+                if (this.isUnloading) {
+                    logger.warn('⚠️ Plugin is unloading, ignoring protocol call', 'Plugin');
+                    new Notice('YouTube Clipper: Plugin is currently unloading. Please try again.');
+                    return;
+                }
+
+                if (!this.urlHandler) {
+                    logger.error('URL handler not initialized', 'Plugin');
+                    new Notice('YouTube Clipper: URL handler not ready. Please try again.');
+                    return;
+                }
+
+                try {
+                    logger.info('📞 Calling URL handler with params', 'Plugin', { params });
+                    this.urlHandler.handleProtocol(params);
+                    logger.info('✅ Protocol handled successfully', 'Plugin');
+                } catch (error) {
+                    logger.error('❌ Error handling protocol', 'Plugin', {
+                        error: error instanceof Error ? error.message : String(error),
+                        params
+                    });
+                    new Notice('YouTube Clipper: Error handling protocol. Check console for details.');
+                }
             });
+
+            logger.info('✅ Protocol handler registered successfully', 'Plugin');
         } catch (error) {
-            logger.debug('Protocol handler not available', 'Plugin');
+            logger.error('❌ Failed to register protocol handler', 'Plugin', {
+                error: error instanceof Error ? error.message : String(error)
+            });
         }
     }
 
     private registerUIComponents(): void {
         this.ribbonIcon = this.addRibbonIcon('film', 'Process YouTube Video', () => {
+            logger.info('🎬 Ribbon icon clicked', 'Plugin');
             void this.safeShowUrlModal();
         });
 
@@ -155,6 +238,25 @@ export default class YoutubeClipperPlugin extends Plugin {
                 await this.handleClipboardUrl();
             }
         });
+
+        // Debug command to test protocol handler
+        this.addCommand({
+            id: `${PLUGIN_PREFIX}-test-protocol`,
+            name: 'YouTube Clipper: Test Protocol Handler',
+            callback: () => {
+                const testUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+                logger.info('🧪 Testing protocol handler with test URL', 'Plugin', { testUrl });
+
+                // Simulate the protocol call
+                const testParams = { url: testUrl };
+                if (this.urlHandler) {
+                    this.urlHandler.handleProtocol(testParams);
+                } else {
+                    logger.error('URL Handler not initialized for protocol test', 'Plugin');
+                    new Notice('URL Handler not ready');
+                }
+            }
+        });
     }
 
     private cleanupUIElements(): void {
@@ -165,11 +267,30 @@ export default class YoutubeClipperPlugin extends Plugin {
     }
 
     private handleUrlDetection(result: UrlDetectionResult): void {
-        logger.info('URL detected, opening modal', 'Plugin', {
+        logger.info('🎯 Main Plugin: URL detected, attempting to open modal', 'Plugin', {
             url: result.url,
             source: result.source,
-            filePath: result.filePath
+            filePath: result.filePath,
+            modalManagerExists: !!this.modalManager,
+            serviceContainerExists: !!this.serviceContainer,
+            isUnloading: this.isUnloading
         });
+
+        if (this.isUnloading) {
+            logger.warn('⚠️ Main Plugin: Plugin is unloading, ignoring URL detection', 'Plugin');
+            return;
+        }
+
+        if (!this.modalManager || !this.serviceContainer) {
+            logger.error('❌ Main Plugin: Required services not available', 'Plugin', {
+                modalManager: !!this.modalManager,
+                serviceContainer: !!this.serviceContainer
+            });
+            new Notice('YouTube Clipper: Plugin not fully initialized. Please try again.');
+            return;
+        }
+
+        logger.info('🚀 Main Plugin: Calling safeShowUrlModal', 'Plugin', { url: result.url });
         void this.safeShowUrlModal(result.url);
     }
 
