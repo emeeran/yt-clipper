@@ -46,9 +46,7 @@ export abstract class BaseAIProvider implements AIProvider {
     }
 
     protected constructor(protected apiKey: string, initialModel?: string, timeout?: number) {
-        if (!apiKey) {
-            throw new Error('API key is required for AI provider');
-        }
+        // Note: API key validation is now optional - some providers (like Ollama) don't require it
         this._model = initialModel || '';
         if (timeout) {
             this._timeout = timeout;

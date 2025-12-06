@@ -1,4 +1,3 @@
-
 /**
  * Conflict prevention utilities for YoutubeClipper Plugin
  * Designed to prevent conflicts with other Obsidian plugins
@@ -10,22 +9,25 @@ export class ConflictPrevention {
     
     /**
      * Check if another plugin might be conflicting
+     * NOTE: We exclude our own plugin elements and avoid overly broad selectors
      */
     static checkForPotentialConflicts(): string[] {
         const warnings: string[] = [];
         
-        // Check for WebClipper-like plugins
+        // Check for specific WebClipper plugin (not our own)
         const suspiciousElements = [
             'div[data-plugin="web-clipper"]',
-            '.web-clipper-modal',
-            '.clipper-button',
-            '[id*="clipper"]',
-            '[class*="clip"]'
+            '.web-clipper-modal'
         ];
         
         suspiciousElements.forEach(selector => {
             const elements = document.querySelectorAll(selector);
-            if (elements.length > 0) {
+            // Filter out our own elements
+            const foreignElements = Array.from(elements).filter(el => 
+                !el.hasAttribute('data-plugin') || 
+                el.getAttribute('data-plugin') !== this.PLUGIN_ID
+            );
+            if (foreignElements.length > 0) {
                 warnings.push(`Detected potential plugin conflict: ${selector}`);
             }
         });
@@ -93,14 +95,14 @@ export class ConflictPrevention {
         
         switch (level) {
             case 'warn':
-                
-break;
+                console.warn(logMessage);
+                break;
             case 'error':
-                
-break;
+                console.error(logMessage);
+                break;
             default:
-                
-}
+                console.log(logMessage);
+        }
     }
     
     /**
@@ -125,11 +127,7 @@ break;
         operation: () => Promise<T>,
         operationName: string
     ): Promise<T | null> {
-        if (!this.isSafeToOperate()) {
-            this.log(`Skipping ${operationName} due to potential conflicts`, 'warn');
-            return null;
-        }
-        
+        // Always allow operation - conflict checking was too aggressive
         try {
             this.log(`Starting ${operationName}`);
             const result = await operation();

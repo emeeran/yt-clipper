@@ -4,7 +4,6 @@ import { logger, LogLevel } from './services/logger';
 import { MESSAGES } from './constants/index';
 import { ModalManager } from './services/modal-manager';
 import { OutputFormat, YouTubePluginSettings, PerformanceMode } from './types';
-import { SaveConfirmationModal } from './components/common';
 import { ServiceContainer } from './services/service-container';
 import { UrlHandler, UrlDetectionResult } from './services/url-handler';
 import { ValidationUtils } from './validation';
@@ -31,7 +30,7 @@ const DEFAULT_SETTINGS: YouTubePluginSettings = {
 };
 
 export default class YoutubeClipperPlugin extends Plugin {
-    private settings: YouTubePluginSettings = DEFAULT_SETTINGS;
+    private _settings: YouTubePluginSettings = DEFAULT_SETTINGS;
     private serviceContainer?: ServiceContainer;
     private ribbonIcon?: HTMLElement | null;
     private isUnloading = false;
@@ -93,11 +92,11 @@ export default class YoutubeClipperPlugin extends Plugin {
     }
 
     private async initializeServices(): Promise<void> {
-        this.serviceContainer = new ServiceContainer(this.settings, this.app);
+        this.serviceContainer = new ServiceContainer(this._settings, this.app);
         this.modalManager = new ModalManager();
         this.urlHandler = new UrlHandler(
             this.app,
-            this.settings,
+            this._settings,
             this.handleUrlDetection.bind(this)
         );
     }
@@ -132,7 +131,7 @@ export default class YoutubeClipperPlugin extends Plugin {
 
     private registerUIComponents(): void {
         this.ribbonIcon = this.addRibbonIcon('film', 'Process YouTube Video', () => {
-            void this.safeShowUrlModal();
+            console.log("[YT-CLIPPER] Ribbon icon clicked"); void this.safeShowUrlModal();
         });
 
         logger.plugin('Ribbon icon set successfully');
@@ -141,7 +140,7 @@ export default class YoutubeClipperPlugin extends Plugin {
             id: `${PLUGIN_PREFIX}-process-youtube-video`,
             name: 'Process YouTube Video',
             callback: () => {
-                void this.safeShowUrlModal();
+                console.log("[YT-CLIPPER] Ribbon icon clicked"); void this.safeShowUrlModal();
             }
         });
 
@@ -195,6 +194,7 @@ export default class YoutubeClipperPlugin extends Plugin {
     }
 
     private async safeShowUrlModal(initialUrl?: string): Promise<void> {
+        console.log("[YT-CLIPPER] safeShowUrlModal called", { initialUrl, hasModalManager: !!this.modalManager, hasServiceContainer: !!this.serviceContainer });
         if (!this.modalManager || !this.serviceContainer) return;
 
         await this.safeOperation(async () => {
@@ -209,6 +209,7 @@ export default class YoutubeClipperPlugin extends Plugin {
     }
 
     private async openYouTubeUrlModal(initialUrl?: string): Promise<void> {
+        console.log("[YT-CLIPPER] openYouTubeUrlModal called", { initialUrl });
         if (this.isUnloading) {
             ConflictPrevention.log('Plugin is unloading, ignoring modal request');
             return;
@@ -219,9 +220,9 @@ export default class YoutubeClipperPlugin extends Plugin {
 
             const aiService = this.serviceContainer.aiService;
             const providers = aiService ? aiService.getProviderNames() : [];
-            const modelOptionsMap: Record<string, string[]> = this.settings.modelOptionsCache || {};
+            const modelOptionsMap: Record<string, string[]> = this._settings.modelOptionsCache || {};
 
-            if (aiService && (!this.settings.modelOptionsCache || Object.keys(this.settings.modelOptionsCache).length === 0)) {
+            if (aiService && (!this._settings.modelOptionsCache || Object.keys(this._settings.modelOptionsCache).length === 0)) {
                 for (const provider of providers) {
                     modelOptionsMap[provider] = aiService.getProviderModels(provider) || [];
                 }
@@ -234,28 +235,28 @@ export default class YoutubeClipperPlugin extends Plugin {
                 providers,
                 defaultProvider: 'Google Gemini', // Prefer Gemini as default provider
                 defaultModel: 'gemini-2.5-pro', // Use the latest Gemini model
-                defaultMaxTokens: this.settings.defaultMaxTokens,
-                defaultTemperature: this.settings.defaultTemperature,
+                defaultMaxTokens: this._settings.defaultMaxTokens,
+                defaultTemperature: this._settings.defaultTemperature,
                 modelOptions: modelOptionsMap,
                 fetchModels: async () => {
                     try {
                         const map = await (this.serviceContainer!.aiService as any).fetchLatestModels();
-                        this.settings.modelOptionsCache = map;
+                        this._settings.modelOptionsCache = map;
                         await this.saveSettings();
                         return map;
                     } catch (error) {
                         return modelOptionsMap;
                     }
                 },
-                performanceMode: this.settings.performanceMode || 'balanced',
-                enableParallelProcessing: this.settings.enableParallelProcessing || false,
-                preferMultimodal: this.settings.preferMultimodal || false,
+                performanceMode: this._settings.performanceMode || 'balanced',
+                enableParallelProcessing: this._settings.enableParallelProcessing || false,
+                preferMultimodal: this._settings.preferMultimodal || false,
                 onPerformanceSettingsChange: async (performanceMode: any, enableParallel: boolean, preferMultimodal: boolean) => {
-                    this.settings.performanceMode = performanceMode;
-                    this.settings.enableParallelProcessing = enableParallel;
-                    this.settings.preferMultimodal = preferMultimodal;
+                    this._settings.performanceMode = performanceMode;
+                    this._settings.enableParallelProcessing = enableParallel;
+                    this._settings.preferMultimodal = preferMultimodal;
                     await this.saveSettings();
-                    this.serviceContainer = new ServiceContainer(this.settings, this.app);
+                    this.serviceContainer = new ServiceContainer(this._settings, this.app);
                 }
             });
 
@@ -285,7 +286,7 @@ export default class YoutubeClipperPlugin extends Plugin {
         const result = await ConflictPrevention.safeOperation(async () => {
             new Notice(MESSAGES.PROCESSING);
 
-            const validation = ValidationUtils.validateSettings(this.settings);
+            const validation = ValidationUtils.validateSettings(this._settings);
             if (!validation.isValid) {
                 throw new Error(`Configuration invalid: ${validation.errors.join(', ')}`);
             }
@@ -309,7 +310,7 @@ export default class YoutubeClipperPlugin extends Plugin {
             if (format === 'custom') {
                 promptToUse = customPrompt;
             } else {
-                promptToUse = this.settings.customPrompts?.[format];
+                promptToUse = this._settings.customPrompts?.[format];
             }
 
             const prompt = promptService.createAnalysisPrompt(videoData, url, format, promptToUse);
@@ -371,7 +372,7 @@ export default class YoutubeClipperPlugin extends Plugin {
             const filePath = await fileService.saveToFile(
                 videoData.title,
                 formattedContent,
-                this.settings.outputPath
+                this._settings.outputPath
             );
 
             new Notice(MESSAGES.SUCCESS(videoData.title));
@@ -420,28 +421,12 @@ export default class YoutubeClipperPlugin extends Plugin {
         }
     }
 
-    private showPersistentSaveConfirmation(file: TFile): void {
-        try {
-            const modal = new SaveConfirmationModal(this.app, file, (shouldOpen) => {
-                if (shouldOpen) {
-                    void this.openFileInNewTab(file);
-                }
-            });
-            modal.open();
-        } catch (error) {
-            ErrorHandler.handle(error as Error, 'Showing save confirmation');
-            new Notice(`File saved: ${file.name}. Click to open.`, 0).noticeEl.onclick = () => {
-                void this.openFileInNewTab(file);
-            };
-        }
-    }
-
     private async handleSettingsChange(newSettings: YouTubePluginSettings): Promise<void> {
         try {
-            this.settings = { ...newSettings };
+            this._settings = { ...newSettings };
             await this.saveSettings();
-            await this.serviceContainer?.updateSettings(this.settings);
-            this.urlHandler?.updateSettings(this.settings);
+            await this.serviceContainer?.updateSettings(this._settings);
+            this.urlHandler?.updateSettings(this._settings);
         } catch (error) {
             ErrorHandler.handle(error as Error, 'Settings update');
             throw error;
@@ -449,11 +434,11 @@ export default class YoutubeClipperPlugin extends Plugin {
     }
 
     private async loadSettings(): Promise<void> {
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+        this._settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
     }
 
     private async saveSettings(): Promise<void> {
-        await this.saveData(this.settings);
+        await this.saveData(this._settings);
     }
 
     private async safeOperation<T>(operation: () => Promise<T>, operationName: string): Promise<T | null> {
@@ -493,6 +478,11 @@ export default class YoutubeClipperPlugin extends Plugin {
 
     // Public method to get current settings
     getCurrentSettings(): YouTubePluginSettings {
-        return { ...this.settings };
+        return { ...this._settings };
+    }
+
+    // Public getter for settings (used by settings tab)
+    get settings(): YouTubePluginSettings {
+        return this._settings;
     }
 }

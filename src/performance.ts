@@ -4,8 +4,9 @@ import { PerformancePreset, CustomTimeoutSettings } from './types';
  * Performance presets and speed/quality configurations
  */
 
+type PerformanceMode = 'fast' | 'balanced' | 'quality';
 
-export const PERFORMANCE_PRESETS: Record<string, PerformancePreset> = {
+export const PERFORMANCE_PRESETS: Record<PerformanceMode, PerformancePreset> & { [key: string]: PerformancePreset } = {
     fast: {
         name: 'Fast',
         description: 'Maximum speed with optimized models and parallel processing. Best for quick summaries.',

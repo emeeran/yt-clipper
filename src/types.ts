@@ -419,6 +419,15 @@ export interface VideoDataService {
      * ```
      */
     getVideoData(videoId: string): Promise<VideoData>;
+
+    /** Get performance metrics for the video service (optional)
+     * @returns Performance metrics object
+     */
+    getPerformanceMetrics?(): Record<string, unknown>;
+
+    /** Cleanup resources when service is destroyed (optional)
+     */
+    cleanup?(): void;
 }
 
 /**
@@ -452,6 +461,17 @@ export interface FileService {
 }
 
 /**
+ * Cache performance metrics
+ */
+export interface CacheMetrics {
+    hits: number;
+    misses: number;
+    evictions: number;
+    size: number;
+    hitRate: number;
+}
+
+/**
  * Interface for caching services
  *
  * Provides in-memory caching with TTL support for performance optimization.
@@ -481,6 +501,19 @@ export interface CacheService {
     /** Clear all cached values
      */
     clear(): void;
+
+    /** Get cache metrics (optional)
+     * @returns Cache metrics object
+     */
+    getMetrics?(): CacheMetrics;
+
+    /** Cleanup cache resources (optional)
+     */
+    cleanup?(): void;
+
+    /** Destroy cache and cleanup all resources (optional)
+     */
+    destroy?(): void;
 }
 
 /**
@@ -665,6 +698,15 @@ export interface AIService {
      * @returns Promise resolving to array of model names
      */
     fetchLatestModelsForProvider(providerName: string): Promise<string[]>;
+
+    /** Get performance metrics for the AI service (optional)
+     * @returns Performance metrics object
+     */
+    getPerformanceMetrics?(): Record<string, unknown>;
+
+    /** Cleanup resources when service is destroyed (optional)
+     */
+    cleanup?(): void;
 }
 
 // Event types

@@ -106,6 +106,7 @@ export class YouTubeUrlModal extends BaseModal {
     }
 
     onOpen(): void {
+        console.log("[YT-CLIPPER] YouTubeUrlModal.onOpen called");
         this.createModalContent();
         this.setupEventHandlers();
         this.setupKeyboardShortcuts();

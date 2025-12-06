@@ -1,4 +1,4 @@
-import { CacheService } from '../../types';
+import { CacheService, CacheMetrics } from '../../types';
 
 /**
  * Performance-optimized in-memory cache service with LRU eviction
@@ -10,14 +10,6 @@ interface CacheItem<T> {
     ttl?: number;
     hits: number;
     size: number; // Estimated size in bytes
-}
-
-interface CacheMetrics {
-    hits: number;
-    misses: number;
-    evictions: number;
-    size: number;
-    hitRate: number;
 }
 
 interface CacheConfig {

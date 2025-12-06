@@ -19,6 +19,17 @@ import {
     PromptService
 } from '../types';
 
+// Chrome-specific memory API type extension
+declare global {
+    interface Performance {
+        memory?: {
+            usedJSHeapSize: number;
+            totalJSHeapSize: number;
+            jsHeapSizeLimit: number;
+        };
+    }
+}
+
 /**
  * Performance-optimized service container with memory management
  */
@@ -37,7 +48,7 @@ export class ServiceContainer implements IServiceContainer {
 
     // Performance optimization: Service metrics tracking
     private serviceMetrics: Map<string, ServiceMetrics> = new Map();
-    private cleanupInterval: NodeJS.Timeout;
+    private cleanupInterval?: NodeJS.Timeout;
     private readonly SERVICE_TTL = 5 * 60 * 1000; // 5 minutes
 
     constructor(
@@ -116,25 +127,34 @@ export class ServiceContainer implements IServiceContainer {
         serviceName: string,
         factory: () => T
     ): T {
-        return performanceTracker.measureOperation(`ServiceContainer`, `getService-${serviceName}`, () => {
-            const serviceProperty = `_${serviceName}` as keyof this;
-            const service = (this as any)[serviceProperty] as T;
+        const serviceProperty = `_${serviceName}` as keyof this;
+        const service = (this as any)[serviceProperty] as T;
 
-            if (service) {
-                // Update usage metrics
-                const metrics = this.serviceMetrics.get(serviceName);
-                if (metrics) {
-                    metrics.lastUsed = Date.now();
-                    metrics.usageCount++;
-                }
-                return service;
+        if (service) {
+            // Update usage metrics
+            const metrics = this.serviceMetrics.get(serviceName);
+            if (metrics) {
+                metrics.lastUsed = Date.now();
+                metrics.usageCount++;
             }
+            return service;
+        }
 
-            // Create new service instance
-            const newService = factory();
-            (this as any)[serviceProperty] = newService;
-            return newService;
-        }, { serviceName });
+        // Create new service instance
+        const startTime = performance.now();
+        const newService = factory();
+        (this as any)[serviceProperty] = newService;
+        
+        // Track metrics asynchronously (non-blocking)
+        performanceTracker.trackOperation(
+            'ServiceContainer',
+            `getService-${serviceName}`,
+            performance.now() - startTime,
+            true,
+            { serviceName }
+        );
+        
+        return newService;
     }
 
     /**

@@ -13,7 +13,9 @@ export interface VideoAnalysisStrategy {
     estimatedTimeReduction: number; // percentage
 }
 
-export const ANALYSIS_STRATEGIES: Record<string, VideoAnalysisStrategy> = {
+type StrategyKey = 'transcript-only' | 'metadata-first' | 'sample-based' | 'chunked-visualization' | 'comprehensive';
+
+export const ANALYSIS_STRATEGIES: Record<StrategyKey, VideoAnalysisStrategy> = {
     'transcript-only': {
         name: 'Transcript Analysis',
         description: 'Use YouTube transcript only (fastest)',

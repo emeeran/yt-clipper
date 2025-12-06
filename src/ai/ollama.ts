@@ -10,7 +10,6 @@ export class OllamaProvider extends BaseAIProvider {
 
     // Ollama API endpoint - defaults to local instance
     private readonly ollamaEndpoint: string;
-    private readonly apiKey?: string;
 
     constructor(apiKey: string = '', model?: string, timeout?: number, endpoint?: string) {
         // Ollama doesn't typically require an API key, but we'll store it if provided
@@ -18,7 +17,6 @@ export class OllamaProvider extends BaseAIProvider {
 
         // Default to localhost:11434 if no endpoint provided
         this.ollamaEndpoint = endpoint || 'http://localhost:11434';
-        this.apiKey = apiKey || undefined;
     }
 
     async process(prompt: string): Promise<string> {
@@ -108,7 +106,7 @@ export class OllamaProvider extends BaseAIProvider {
                         const bytes = new Uint8Array(img);
                         let binary = '';
                         for (let i = 0; i < bytes.length; i++) {
-                            binary += String.fromCharCode(bytes[i]);
+                            binary += String.fromCharCode(bytes[i]!);
                         }
                         const base64 = btoa(binary);
                         processedImages.push(base64);
