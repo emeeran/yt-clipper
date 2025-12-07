@@ -41,6 +41,7 @@ export class YouTubeUrlModal extends BaseModal {
     private clearButton?: HTMLButtonElement;
     private processButton?: HTMLButtonElement;
     private openButton?: HTMLButtonElement;
+    private copyPathButton?: HTMLButtonElement;
     private thumbnailEl?: HTMLImageElement;
     private metadataContainer?: HTMLDivElement;
     private fetchInProgress = false;
@@ -88,14 +89,18 @@ export class YouTubeUrlModal extends BaseModal {
         // Load smart defaults from user preferences
         const smartDefaults = UserPreferencesService.getSmartDefaultPerformanceSettings();
         const smartModelParams = UserPreferencesService.getSmartDefaultModelParameters();
+        const lastProvider = UserPreferencesService.getSmartDefaultProvider();
+        const lastFormat = UserPreferencesService.getSmartDefaultFormat();
+        const lastModel = UserPreferencesService.getPreference('lastModel');
 
-        // Set default provider and model values
-        this.selectedProvider = 'Google Gemini';
-        this.selectedModel = 'gemini-2.5-pro';
+        // Set default provider and model values based on user history
+        this.selectedProvider = lastProvider || 'Google Gemini';
+        this.selectedModel = lastModel || 'gemini-2.5-pro';
+        this.format = lastFormat;
 
-        // Track usage for smart suggestions
+        // Track usage for smart suggestions (will be updated again on actual processing)
         UserPreferencesService.updateLastUsed({
-            format: 'detailed-guide',
+            format: lastFormat,
             provider: this.selectedProvider,
             model: this.selectedModel,
             maxTokens: options.defaultMaxTokens || 4096,
@@ -221,6 +226,188 @@ export class YouTubeUrlModal extends BaseModal {
             color: var(--text-muted);
             border-radius: 4px;
         `;
+
+        // Video preview container (hidden by default)
+        this.createVideoPreviewSection(urlContainer);
+    }
+
+    /**
+     * Create video preview section with thumbnail and metadata
+     */
+    private videoPreviewContainer?: HTMLDivElement;
+    private videoTitleEl?: HTMLDivElement;
+    private videoDurationEl?: HTMLSpanElement;
+    private videoChannelEl?: HTMLSpanElement;
+    private providerStatusEl?: HTMLDivElement;
+
+    private createVideoPreviewSection(parent: HTMLElement): void {
+        this.videoPreviewContainer = parent.createDiv();
+        this.videoPreviewContainer.style.cssText = `
+            display: none;
+            margin-top: 12px;
+            padding: 12px;
+            background: var(--background-primary);
+            border-radius: 10px;
+            border: 1px solid var(--background-modifier-border);
+        `;
+
+        const previewContent = this.videoPreviewContainer.createDiv();
+        previewContent.style.cssText = `
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        `;
+
+        // Thumbnail
+        this.thumbnailEl = previewContent.createEl('img');
+        this.thumbnailEl.style.cssText = `
+            width: 120px;
+            height: 68px;
+            border-radius: 6px;
+            object-fit: cover;
+            background: var(--background-modifier-border);
+        `;
+        this.thumbnailEl.alt = 'Video thumbnail';
+
+        // Metadata container
+        const metaContainer = previewContent.createDiv();
+        metaContainer.style.cssText = `
+            flex: 1;
+            min-width: 0;
+        `;
+
+        this.videoTitleEl = metaContainer.createDiv();
+        this.videoTitleEl.style.cssText = `
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-normal);
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        `;
+
+        const metaRow = metaContainer.createDiv();
+        metaRow.style.cssText = `
+            display: flex;
+            gap: 12px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        `;
+
+        this.videoChannelEl = metaRow.createSpan();
+        this.videoDurationEl = metaRow.createSpan();
+
+        // Provider status (shown during processing)
+        this.providerStatusEl = this.videoPreviewContainer.createDiv();
+        this.providerStatusEl.style.cssText = `
+            margin-top: 8px;
+            padding: 6px 10px;
+            background: var(--background-secondary);
+            border-radius: 6px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: none;
+        `;
+    }
+
+    /**
+     * Show video preview with thumbnail and metadata
+     */
+    private async showVideoPreview(videoId: string): Promise<void> {
+        if (!this.videoPreviewContainer || !this.thumbnailEl) return;
+
+        // Show container with loading skeleton animation
+        this.videoPreviewContainer.style.display = 'block';
+        
+        // Add skeleton loading styles
+        const skeletonAnim = `
+            @keyframes ytc-skeleton-pulse {
+                0%, 100% { opacity: 0.4; }
+                50% { opacity: 0.8; }
+            }
+        `;
+        if (!document.getElementById('ytc-skeleton-styles')) {
+            const styleEl = document.createElement('style');
+            styleEl.id = 'ytc-skeleton-styles';
+            styleEl.textContent = skeletonAnim;
+            document.head.appendChild(styleEl);
+        }
+
+        // Show loading skeleton for thumbnail
+        this.thumbnailEl.style.background = 'var(--background-modifier-border)';
+        this.thumbnailEl.style.animation = 'ytc-skeleton-pulse 1.5s ease-in-out infinite';
+        this.thumbnailEl.src = '';
+        
+        if (this.videoTitleEl) {
+            this.videoTitleEl.textContent = '████████████████';
+            this.videoTitleEl.style.color = 'var(--background-modifier-border)';
+            this.videoTitleEl.style.animation = 'ytc-skeleton-pulse 1.5s ease-in-out infinite';
+        }
+        if (this.videoChannelEl) {
+            this.videoChannelEl.textContent = '████████';
+            this.videoChannelEl.style.animation = 'ytc-skeleton-pulse 1.5s ease-in-out infinite';
+        }
+        if (this.videoDurationEl) {
+            this.videoDurationEl.textContent = '██:██';
+            this.videoDurationEl.style.animation = 'ytc-skeleton-pulse 1.5s ease-in-out infinite';
+        }
+
+        // Load thumbnail
+        this.thumbnailEl.src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+        this.thumbnailEl.onload = () => {
+            if (this.thumbnailEl) {
+                this.thumbnailEl.style.animation = 'none';
+            }
+        };
+
+        // Fetch video metadata (using oEmbed)
+        try {
+            const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+            if (response.ok) {
+                const data = await response.json();
+                if (this.videoTitleEl) {
+                    this.videoTitleEl.textContent = data.title || 'Unknown Title';
+                    this.videoTitleEl.style.color = 'var(--text-normal)';
+                    this.videoTitleEl.style.animation = 'none';
+                }
+                if (this.videoChannelEl) {
+                    this.videoChannelEl.textContent = `📺 ${data.author_name || 'Unknown Channel'}`;
+                    this.videoChannelEl.style.animation = 'none';
+                }
+                if (this.videoDurationEl) {
+                    this.videoDurationEl.textContent = '';
+                    this.videoDurationEl.style.animation = 'none';
+                }
+            }
+        } catch {
+            if (this.videoTitleEl) {
+                this.videoTitleEl.textContent = 'Video Preview';
+                this.videoTitleEl.style.color = 'var(--text-normal)';
+                this.videoTitleEl.style.animation = 'none';
+            }
+            if (this.videoChannelEl) this.videoChannelEl.style.animation = 'none';
+            if (this.videoDurationEl) this.videoDurationEl.style.animation = 'none';
+        }
+    }
+
+    /**
+     * Hide video preview
+     */
+    private hideVideoPreview(): void {
+        if (this.videoPreviewContainer) {
+            this.videoPreviewContainer.style.display = 'none';
+        }
+    }
+
+    /**
+     * Update provider status during processing
+     */
+    private updateProviderStatus(provider: string, status: string): void {
+        if (this.providerStatusEl) {
+            this.providerStatusEl.style.display = 'block';
+            this.providerStatusEl.innerHTML = `<span style="color: var(--text-accent);">🤖 ${provider}</span> — ${status}`;
+        }
     }
 
     /**
@@ -283,8 +470,10 @@ export class YouTubeUrlModal extends BaseModal {
             optionEl.textContent = option.text;
         });
 
-        // Set default format selection
-        this.formatSelect!.value = 'executive-summary';
+        // Set default format selection - use last used or smart default
+        const smartFormat = UserPreferencesService.getSmartDefaultFormat();
+        this.formatSelect!.value = smartFormat;
+        this.format = smartFormat;
 
         // Update format when changed
         this.formatSelect!.addEventListener('change', () => {
@@ -339,8 +528,10 @@ export class YouTubeUrlModal extends BaseModal {
             optionEl.textContent = option.text;
         });
 
-        // Set default provider selection
-        this.providerSelect!.value = 'Google Gemini';
+        // Set default provider selection - use last used or smart default
+        const smartProvider = UserPreferencesService.getSmartDefaultProvider() || 'Google Gemini';
+        this.providerSelect!.value = smartProvider;
+        this.selectedProvider = smartProvider;
 
         // Update provider when changed
         this.providerSelect!.addEventListener('change', () => {
@@ -890,6 +1081,24 @@ export class YouTubeUrlModal extends BaseModal {
         this.openButton.style.display = 'none';
         this.openButton.addEventListener('click', () => this.handleOpenFile());
 
+        // Copy Path button (hidden initially)
+        this.copyPathButton = container.createEl('button');
+        this.copyPathButton.textContent = '📋 Copy Path';
+        this.copyPathButton.style.cssText = `
+            padding: 8px 16px;
+            border: 1px solid var(--background-modifier-border);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            background: var(--background-secondary);
+            color: var(--text-normal);
+            transition: all 0.2s ease;
+            margin-left: 8px;
+        `;
+        this.copyPathButton.style.display = 'none';
+        this.copyPathButton.addEventListener('click', () => this.handleCopyPath());
+
         // Initial state update
         this.updateProcessButtonState();
     }
@@ -908,6 +1117,43 @@ export class YouTubeUrlModal extends BaseModal {
 
         this.scope.register([], 'Escape', () => {
             this.close();
+            return false;
+        });
+
+        // Ctrl+O to open processed file
+        this.scope.register(['Ctrl'], 'o', () => {
+            if (this.openButton && this.openButton.style.display !== 'none') {
+                this.handleOpenFile();
+            }
+            return false;
+        });
+
+        // Ctrl+C when not in input to copy path
+        this.scope.register(['Ctrl'], 'c', () => {
+            // Only copy path if not in input field and file is processed
+            if (document.activeElement !== this.urlInput && this.processedFilePath) {
+                this.handleCopyPath();
+                return false;
+            }
+            return true; // Allow default copy behavior in input
+        });
+
+        // Ctrl+V to paste and auto-process
+        this.scope.register(['Ctrl', 'Shift'], 'v', async () => {
+            try {
+                const clipText = await navigator.clipboard.readText();
+                if (this.urlInput && ValidationUtils.isValidYouTubeUrl(clipText)) {
+                    this.urlInput.value = clipText;
+                    this.url = clipText;
+                    this.updateProcessButtonState();
+                    // Auto-trigger process if valid
+                    if (this.processButton && !this.processButton.disabled) {
+                        this.processButton.click();
+                    }
+                }
+            } catch {
+                // Clipboard access denied - ignore
+            }
             return false;
         });
 
@@ -943,11 +1189,17 @@ export class YouTubeUrlModal extends BaseModal {
 
         if (trimmedUrl.length === 0) {
             this.setValidationMessage('Paste a YouTube link to begin processing.', 'info');
+            this.hideVideoPreview();
+        } else if (isValid) {
+            this.setValidationMessage('Ready to process this video.', 'success');
+            // Show video preview
+            const videoId = ValidationUtils.extractVideoId(trimmedUrl);
+            if (videoId) {
+                void this.showVideoPreview(videoId);
+            }
         } else {
-            this.setValidationMessage(
-                isValid ? 'Ready to process this video.' : 'Enter a valid YouTube video URL.',
-                isValid ? 'success' : 'error'
-            );
+            this.setValidationMessage('Enter a valid YouTube video URL.', 'error');
+            this.hideVideoPreview();
         }
     }
 
@@ -1002,13 +1254,16 @@ export class YouTubeUrlModal extends BaseModal {
             // Update progress to 50% (fetch video data)
             this.updateProgress(50, 'Fetching video data...');
 
-            // Update progress to 75% (process with AI)
-            this.updateProgress(75, 'Processing with AI...');
-
             // Set format, provider, and model based on dropdown selections
             this.format = (this.formatSelect?.value as OutputFormat) ?? 'executive-summary';
             this.selectedProvider = this.providerSelect?.value;
             this.selectedModel = this.modelSelect?.value;
+
+            // Update progress to 75% (process with AI) - show provider name
+            const providerDisplayName = this.selectedProvider 
+                ? this.selectedProvider.charAt(0).toUpperCase() + this.selectedProvider.slice(1)
+                : 'AI';
+            this.updateProgress(75, `Processing with ${providerDisplayName}...`);
 
             // Call the process function
             const filePath = await this.options.onProcess(
@@ -1053,6 +1308,9 @@ export class YouTubeUrlModal extends BaseModal {
         if (this.openButton) {
             this.openButton.style.display = 'none';
         }
+        if (this.copyPathButton) {
+            this.copyPathButton.style.display = 'none';
+        }
     }
 
     /**
@@ -1085,6 +1343,9 @@ export class YouTubeUrlModal extends BaseModal {
         if (this.openButton) {
             this.openButton.style.display = 'inline-block';
         }
+        if (this.copyPathButton) {
+            this.copyPathButton.style.display = 'inline-block';
+        }
         if (this.headerEl) {
             this.headerEl.textContent = '✅ Video Processed Successfully!';
         }
@@ -1107,6 +1368,9 @@ export class YouTubeUrlModal extends BaseModal {
         if (this.openButton) {
             this.openButton.style.display = 'none';
         }
+        if (this.copyPathButton) {
+            this.copyPathButton.style.display = 'none';
+        }
         if (this.progressContainer) {
             this.progressContainer.style.display = 'none';
         }
@@ -1126,6 +1390,29 @@ export class YouTubeUrlModal extends BaseModal {
                 this.close();
             } catch (error) {
                 ErrorHandler.handle(error as Error, 'Opening file');
+            }
+        }
+    }
+
+    /**
+     * Handle copy path button click
+     */
+    private async handleCopyPath(): Promise<void> {
+        if (this.processedFilePath) {
+            try {
+                await navigator.clipboard.writeText(this.processedFilePath);
+                // Show brief feedback
+                if (this.copyPathButton) {
+                    const originalText = this.copyPathButton.textContent;
+                    this.copyPathButton.textContent = '✅ Copied!';
+                    setTimeout(() => {
+                        if (this.copyPathButton) {
+                            this.copyPathButton.textContent = originalText;
+                        }
+                    }, 1500);
+                }
+            } catch (error) {
+                ErrorHandler.handle(error as Error, 'Copying path to clipboard');
             }
         }
     }

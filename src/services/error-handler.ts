@@ -3,20 +3,139 @@ import { MESSAGES } from '../constants/index';
 import { Notice } from 'obsidian';
 
 /**
+ * Error category for better handling
+ */
+export enum ErrorCategory {
+    NETWORK = 'network',
+    QUOTA = 'quota',
+    AUTH = 'auth',
+    VALIDATION = 'validation',
+    PROVIDER = 'provider',
+    UNKNOWN = 'unknown'
+}
+
+/**
+ * Structured error result
+ */
+export interface ErrorResult {
+    category: ErrorCategory;
+    message: string;
+    retryable: boolean;
+    retryDelay?: number;
+    userGuidance?: string;
+}
+
+/**
  * Centralized error handling to eliminate code duplication
  */
 
 
 export class ErrorHandler implements ErrorHandlerInterface {
     /**
+     * Classify an error into categories for appropriate handling
+     */
+    static classifyError(error: Error): ErrorResult {
+        const message = error.message.toLowerCase();
+        
+        // Network errors
+        if (message.includes('network') || message.includes('fetch') || 
+            message.includes('connection') || message.includes('timeout') ||
+            message.includes('econnrefused') || message.includes('enotfound')) {
+            return {
+                category: ErrorCategory.NETWORK,
+                message: MESSAGES.ERRORS.NETWORK_ERROR,
+                retryable: true,
+                retryDelay: 2000,
+                userGuidance: 'Check your internet connection and try again.'
+            };
+        }
+        
+        // Quota/Rate limit errors
+        if (this.isQuotaError(error)) {
+            const provider = this.extractProviderName(error);
+            return {
+                category: ErrorCategory.QUOTA,
+                message: message.includes('rate') 
+                    ? MESSAGES.ERRORS.RATE_LIMITED(provider)
+                    : MESSAGES.ERRORS.QUOTA_EXCEEDED(provider),
+                retryable: message.includes('rate'),
+                retryDelay: message.includes('rate') ? 60000 : undefined,
+                userGuidance: message.includes('rate') 
+                    ? 'Wait a minute before trying again.'
+                    : 'Check your API plan or try a different provider.'
+            };
+        }
+        
+        // Authentication errors
+        if (message.includes('401') || message.includes('403') || 
+            message.includes('unauthorized') || message.includes('invalid key') ||
+            message.includes('invalid api key') || message.includes('authentication')) {
+            return {
+                category: ErrorCategory.AUTH,
+                message: 'API key is invalid or expired. Please check your settings.',
+                retryable: false,
+                userGuidance: 'Verify your API key in the plugin settings.'
+            };
+        }
+        
+        // Validation errors
+        if (message.includes('invalid url') || message.includes('video id') ||
+            message.includes('not found') || message.includes('unavailable')) {
+            return {
+                category: ErrorCategory.VALIDATION,
+                message: error.message,
+                retryable: false,
+                userGuidance: 'Check the video URL and try again.'
+            };
+        }
+        
+        // Provider-specific errors
+        if (message.includes('model') || message.includes('context length') ||
+            message.includes('too long') || message.includes('token')) {
+            return {
+                category: ErrorCategory.PROVIDER,
+                message: error.message,
+                retryable: false,
+                userGuidance: 'Try a different model or shorter video.'
+            };
+        }
+        
+        // Unknown errors
+        return {
+            category: ErrorCategory.UNKNOWN,
+            message: error.message,
+            retryable: true,
+            retryDelay: 3000,
+            userGuidance: 'An unexpected error occurred. Please try again.'
+        };
+    }
+
+    /**
      * Handle errors with consistent logging and user feedback
      */
     static handle(error: Error, context: string, showNotice = true): void {
         const errorMessage = `${context}: ${error.message}`;
         
-if (showNotice) {
+        if (showNotice) {
             new Notice(`Error: ${error.message}`);
         }
+    }
+
+    /**
+     * Handle errors with classification and better UX
+     */
+    static handleWithGuidance(error: Error, context: string): ErrorResult {
+        const result = this.classifyError(error);
+        
+        // Create notice with guidance
+        const noticeMessage = result.userGuidance 
+            ? `${result.message}\n\n💡 ${result.userGuidance}`
+            : result.message;
+        
+        const noticeDuration = result.retryable ? 5000 : 8000;
+        new Notice(noticeMessage, noticeDuration);
+        
+        return result;
     }
 
     /**

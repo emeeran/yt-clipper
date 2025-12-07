@@ -5,6 +5,77 @@ All notable changes to the YouTubeClipper plugin will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2025-01-XX
+
+### 🎨 UI/UX Enhancements
+
+- **Settings Tab Improvements**
+  - Added collapsible drawers for API Keys and AI Configuration sections
+  - Drawers are closed by default for cleaner settings UI
+  - API keys now use password input type for security
+  - Added individual "Test" validation button for each API provider
+
+- **URL Modal Improvements**
+  - New dark grey background for better visual appeal
+  - Golden yellow centered header with gradient
+  - Teal accent colors for buttons (replacing purple)
+  - Grid-aligned dropdown layout for Format, Provider, and Model selectors
+  - Video thumbnail preview with metadata when URL is entered
+  - Skeleton loading animation while fetching video info
+  - "Copy Path" button for copying processed file path
+  - Shows provider name during AI processing (e.g., "Processing with Gemini...")
+
+- **Light Theme Improvements**
+  - Warm off-white background colors
+  - Better contrast and visual hierarchy
+  - Improved button and input styling
+
+### ⌨️ Keyboard Shortcuts
+
+- `Ctrl+O` - Open processed note
+- `Ctrl+C` (when not in input) - Copy file path to clipboard
+- `Ctrl+Shift+V` - Paste URL and auto-process if valid
+
+### 🧠 Smart Defaults
+
+- Last used format is remembered and restored on modal open
+- Last used provider is remembered and restored
+- User preferences now persist across sessions
+- Smart suggestions based on usage patterns
+
+### 🔧 Error Handling Improvements
+
+- Added error classification system (Network, Quota, Auth, Validation, Provider)
+- Better user guidance for different error types
+- Retryable errors now indicate retry delays
+- Enhanced quota/rate limit detection with specific messaging
+- New error messages for timeout, connection, and transcript issues
+
+### 🗄️ Caching Improvements
+
+- New persistent cache for transcripts (survives plugin reloads)
+- Transcript cache: 7-day TTL, up to 50 videos
+- Video metadata cache: 24-hour TTL, up to 200 entries
+- Dual-layer caching (memory + localStorage) for optimal performance
+
+### 📝 Enhanced Messages
+
+- Added success messages for common operations
+- Added warning messages for slow processing and large transcripts
+- Added help text for format descriptions
+- Provider-specific error messages with actionable guidance
+
+### 🧪 Testing
+
+- Added 32 new unit tests for PersistentCacheService, ErrorHandler, and UserPreferencesService
+- Total test count: 72 tests passing
+
+### 📊 Bundle Size
+
+- Bundle size: 163.75 KB (slight increase due to new features)
+
+---
+
 ## [1.4.0] - 2025-12-07
 
 ### 🚀 Major Optimization Release

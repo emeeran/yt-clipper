@@ -1,5 +1,6 @@
 import { API_ENDPOINTS } from '../ai/api';
 import { CacheService } from '../types';
+import { transcriptCache } from './cache/persistent-cache';
 
 /**
  * YouTube transcript extraction and processing service
@@ -20,12 +21,13 @@ export interface Transcript {
 }
 
 export class YouTubeTranscriptService {
-    private readonly transcriptTTL = 1000 * 60 * 60; // 1 hour
+    private readonly transcriptTTL = 1000 * 60 * 60 * 24 * 7; // 7 days for persistent cache
 
     constructor(private cache?: CacheService) {}
 
     /**
      * Extract transcript for a YouTube video
+     * Uses both in-memory and persistent cache for optimal performance
      */
     async getTranscript(videoId: string): Promise<Transcript | null> {
         if (!videoId) {
@@ -33,9 +35,19 @@ export class YouTubeTranscriptService {
         }
 
         const cacheKey = `transcript-${videoId}`;
-        const cached = this.cache?.get<Transcript>(cacheKey);
-        if (cached) {
-            return cached;
+        
+        // Check in-memory cache first (fastest)
+        const memCached = this.cache?.get<Transcript>(cacheKey);
+        if (memCached) {
+            return memCached;
+        }
+        
+        // Check persistent cache (survives reloads)
+        const persistentCached = transcriptCache.get<Transcript>(videoId);
+        if (persistentCached) {
+            // Populate in-memory cache for faster subsequent access
+            this.cache?.set(cacheKey, persistentCached, this.transcriptTTL);
+            return persistentCached;
         }
 
         try {
@@ -43,7 +55,9 @@ export class YouTubeTranscriptService {
             const transcript = await this.fetchTranscriptWithFallback(videoId);
 
             if (transcript) {
+                // Save to both in-memory and persistent cache
                 this.cache?.set(cacheKey, transcript, this.transcriptTTL);
+                transcriptCache.set(videoId, transcript, this.transcriptTTL);
                 return transcript;
             }
 
