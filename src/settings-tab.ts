@@ -533,11 +533,7 @@ export class YouTubeSettingsTab extends PluginSettingTab {
     }
 
     private createOutputSection(): void {
-        const section = this.containerEl.createDiv({ cls: `${CSS_PREFIX}-section` });
-
-        const header = section.createDiv({ cls: `${CSS_PREFIX}-section-header` });
-        header.createSpan({ cls: `${CSS_PREFIX}-section-icon`, text: '📁' });
-        header.createEl('h3', { cls: `${CSS_PREFIX}-section-title`, text: 'Output Settings' });
+        const { content: section } = this.createDrawer('Output Settings', '📁', false);
 
         new Setting(section)
             .setName('Output Folder')
@@ -551,11 +547,7 @@ export class YouTubeSettingsTab extends PluginSettingTab {
     }
 
     private createAdvancedSection(): void {
-        const section = this.containerEl.createDiv({ cls: `${CSS_PREFIX}-section` });
-
-        const header = section.createDiv({ cls: `${CSS_PREFIX}-section-header` });
-        header.createSpan({ cls: `${CSS_PREFIX}-section-icon`, text: '⚙️' });
-        header.createEl('h3', { cls: `${CSS_PREFIX}-section-title`, text: 'Advanced Settings' });
+        const { content: section } = this.createDrawer('Advanced Settings', '⚙️', false);
 
         new Setting(section)
             .setName('Parallel Processing')

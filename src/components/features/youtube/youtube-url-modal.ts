@@ -12,7 +12,7 @@ import { App, Notice } from 'obsidian';
 
 
 export interface YouTubeUrlModalOptions {
-    onProcess: (url: string, format: OutputFormat, provider?: string, model?: string, customPrompt?: string, performanceMode?: PerformanceMode, enableParallel?: boolean, preferMultimodal?: boolean, maxTokens?: number, temperature?: number) => Promise<string>; // Return file path
+    onProcess: (url: string, format: OutputFormat, provider?: string, model?: string, customPrompt?: string, performanceMode?: PerformanceMode, enableParallel?: boolean, preferMultimodal?: boolean, maxTokens?: number, temperature?: number, enableAutoFallback?: boolean) => Promise<string>; // Return file path
     onOpenFile?: (filePath: string) => Promise<void>;
     initialUrl?: string;
     providers?: string[]; // available provider names
@@ -26,6 +26,7 @@ export interface YouTubeUrlModalOptions {
     // Performance settings from plugin settings
     performanceMode?: PerformanceMode;
     enableParallelProcessing?: boolean;
+    enableAutoFallback?: boolean;
     preferMultimodal?: boolean;
     onPerformanceSettingsChange?: (performanceMode: PerformanceMode, enableParallel: boolean, preferMultimodal: boolean) => Promise<void>;
 }
@@ -91,11 +92,15 @@ export class YouTubeUrlModal extends BaseModal {
         const smartModelParams = UserPreferencesService.getSmartDefaultModelParameters();
         const lastProvider = UserPreferencesService.getSmartDefaultProvider();
         const lastFormat = UserPreferencesService.getSmartDefaultFormat();
+        
+        // Check for user-set preferred model, falling back to last used
+        const preferredModel = UserPreferencesService.getPreference('preferredModel');
         const lastModel = UserPreferencesService.getPreference('lastModel');
 
         // Set default provider and model values based on user history
+        // Preferred settings take priority over last used
         this.selectedProvider = lastProvider || 'Google Gemini';
-        this.selectedModel = lastModel || 'gemini-2.5-pro';
+        this.selectedModel = preferredModel || lastModel || 'gemini-2.5-pro';
         this.format = lastFormat;
 
         // Track usage for smart suggestions (will be updated again on actual processing)
@@ -625,6 +630,59 @@ export class YouTubeUrlModal extends BaseModal {
             }
         });
 
+        // Create "Set Default" button
+        const setDefaultBtn = modelLabelRow.createEl('button');
+        setDefaultBtn.innerHTML = '⭐';
+        setDefaultBtn.title = 'Set current selections as default';
+        setDefaultBtn.style.cssText = `
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 2px 4px;
+            border-radius: 4px;
+            opacity: 0.7;
+            transition: opacity 0.2s, background 0.2s;
+            margin-left: 2px;
+        `;
+
+        setDefaultBtn.addEventListener('mouseenter', () => {
+            setDefaultBtn.style.opacity = '1';
+            setDefaultBtn.style.background = 'var(--background-modifier-hover)';
+        });
+
+        setDefaultBtn.addEventListener('mouseleave', () => {
+            setDefaultBtn.style.opacity = '0.7';
+            setDefaultBtn.style.background = 'none';
+        });
+
+        setDefaultBtn.addEventListener('click', () => {
+            const currentFormat = this.formatSelect?.value as OutputFormat;
+            const currentProvider = this.providerSelect?.value;
+            const currentModel = this.modelSelect?.value;
+
+            // Save as preferred defaults
+            UserPreferencesService.setPreference('preferredFormat', currentFormat);
+            UserPreferencesService.setPreference('preferredProvider', currentProvider);
+            UserPreferencesService.setPreference('preferredModel', currentModel);
+
+            // Also update last used
+            UserPreferencesService.updateLastUsed({
+                format: currentFormat,
+                provider: currentProvider,
+                model: currentModel,
+            });
+
+            // Visual feedback
+            const originalText = setDefaultBtn.innerHTML;
+            setDefaultBtn.innerHTML = '✅';
+            new Notice(`Default set: ${currentFormat} / ${currentProvider} / ${currentModel?.split('/').pop() || currentModel}`);
+            
+            setTimeout(() => {
+                setDefaultBtn.innerHTML = originalText;
+            }, 1500);
+        });
+
         this.modelSelect = modelContainer.createEl('select');
         this.modelSelect.style.cssText = `
             width: 100%;
@@ -669,6 +727,114 @@ export class YouTubeUrlModal extends BaseModal {
         // Update model when changed
         this.modelSelect!.addEventListener('change', () => {
             this.selectedModel = this.modelSelect?.value;
+        });
+
+        // Auto Fallback toggle row
+        this.createFallbackToggle(this.contentEl);
+    }
+
+    /**
+     * Create auto fallback toggle
+     */
+    private autoFallbackEnabled = true;
+    private fallbackToggle?: HTMLInputElement;
+
+    private createFallbackToggle(parent: HTMLElement): void {
+        const toggleRow = parent.createDiv();
+        toggleRow.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 12px;
+            padding: 8px 12px;
+            background: var(--background-secondary);
+            border-radius: 8px;
+            font-size: 0.85rem;
+        `;
+
+        const labelContainer = toggleRow.createDiv();
+        labelContainer.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        `;
+
+        labelContainer.createSpan({ text: '🔄' });
+        const label = labelContainer.createSpan({ text: 'Auto Fallback' });
+        label.style.cssText = `
+            color: var(--text-normal);
+            font-weight: 500;
+        `;
+
+        const hint = labelContainer.createSpan({ text: '(try next provider on failure)' });
+        hint.style.cssText = `
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        `;
+
+        // Toggle switch container
+        const toggleContainer = toggleRow.createDiv();
+        toggleContainer.style.cssText = `
+            position: relative;
+            width: 44px;
+            height: 24px;
+        `;
+
+        this.fallbackToggle = toggleContainer.createEl('input', { type: 'checkbox' });
+        this.fallbackToggle.checked = this.options.enableAutoFallback ?? true;
+        this.autoFallbackEnabled = this.fallbackToggle.checked;
+        this.fallbackToggle.style.cssText = `
+            position: absolute;
+            width: 44px;
+            height: 24px;
+            appearance: none;
+            -webkit-appearance: none;
+            background: var(--background-modifier-border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            outline: none;
+        `;
+
+        // Toggle knob styling via pseudo-element simulation
+        const updateToggleStyle = () => {
+            if (this.fallbackToggle?.checked) {
+                this.fallbackToggle.style.background = 'var(--ytc-accent, #0d9488)';
+            } else {
+                this.fallbackToggle!.style.background = 'var(--background-modifier-border)';
+            }
+        };
+
+        // Create toggle knob
+        const knob = toggleContainer.createDiv();
+        knob.style.cssText = `
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s ease;
+            pointer-events: none;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        `;
+
+        const updateKnob = () => {
+            if (this.fallbackToggle?.checked) {
+                knob.style.transform = 'translateX(20px)';
+            } else {
+                knob.style.transform = 'translateX(0)';
+            }
+        };
+
+        updateToggleStyle();
+        updateKnob();
+
+        this.fallbackToggle.addEventListener('change', () => {
+            this.autoFallbackEnabled = this.fallbackToggle?.checked ?? true;
+            updateToggleStyle();
+            updateKnob();
         });
     }
 
@@ -816,16 +982,16 @@ export class YouTubeUrlModal extends BaseModal {
             css += `--ytc-text-secondary: #4a5568;`;
             css += `--ytc-text-muted: #718096;`;
             css += `--ytc-border: #d1d5db;`;
-            css += `--ytc-border-focus: #0d9488;`;
-            css += `--ytc-accent: #14b8a6;`;
-            css += `--ytc-accent-hover: #0d9488;`;
-            css += `--ytc-accent-gradient: linear-gradient(135deg, #14b8a6 0%, #2dd4bf 100%);`;
+            css += `--ytc-border-focus: #0f766e;`;
+            css += `--ytc-accent: #0d9488;`;
+            css += `--ytc-accent-hover: #0f766e;`;
+            css += `--ytc-accent-gradient: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);`;
             css += `--ytc-success: #10b981;`;
             css += `--ytc-warning: #f59e0b;`;
             css += `--ytc-error: #ef4444;`;
             css += `--ytc-shadow: rgba(0, 0, 0, 0.08);`;
             css += `--ytc-shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.12);`;
-            css += `--ytc-glow: 0 0 20px rgba(20, 184, 166, 0.2);`;
+            css += `--ytc-glow: 0 0 20px rgba(13, 148, 136, 0.25);`;
             css += `}`;
 
             // Dark theme colors - refined dark palette
@@ -838,16 +1004,16 @@ export class YouTubeUrlModal extends BaseModal {
             css += `--ytc-text-secondary: #a1a1aa;`;
             css += `--ytc-text-muted: #71717a;`;
             css += `--ytc-border: #3f3f46;`;
-            css += `--ytc-border-focus: #2dd4bf;`;
-            css += `--ytc-accent: #2dd4bf;`;
-            css += `--ytc-accent-hover: #14b8a6;`;
-            css += `--ytc-accent-gradient: linear-gradient(135deg, #2dd4bf 0%, #5eead4 100%);`;
+            css += `--ytc-border-focus: #14b8a6;`;
+            css += `--ytc-accent: #14b8a6;`;
+            css += `--ytc-accent-hover: #0d9488;`;
+            css += `--ytc-accent-gradient: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);`;
             css += `--ytc-success: #22c55e;`;
             css += `--ytc-warning: #eab308;`;
             css += `--ytc-error: #ef4444;`;
             css += `--ytc-shadow: rgba(0, 0, 0, 0.4);`;
             css += `--ytc-shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.5);`;
-            css += `--ytc-glow: 0 0 30px rgba(45, 212, 191, 0.25);`;
+            css += `--ytc-glow: 0 0 30px rgba(20, 184, 166, 0.25);`;
             css += `}`;
 
             // Modal container styling
@@ -1276,7 +1442,8 @@ export class YouTubeUrlModal extends BaseModal {
                 this.options.enableParallelProcessing || false,
                 this.options.preferMultimodal || false,
                 this.options.defaultMaxTokens || 4096,
-                this.options.defaultTemperature || 0.5
+                this.options.defaultTemperature || 0.5,
+                this.autoFallbackEnabled
             );
 
             // Update progress to 100% (complete)

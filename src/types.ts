@@ -19,6 +19,7 @@ export interface YouTubePluginSettings {
     performanceMode: PerformanceMode;
     customTimeouts?: CustomTimeoutSettings;
     enableParallelProcessing: boolean;
+    enableAutoFallback: boolean;
     preferMultimodal: boolean;
     defaultMaxTokens: number;
     defaultTemperature: number;

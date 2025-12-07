@@ -26,6 +26,7 @@ const DEFAULT_SETTINGS: YouTubePluginSettings = {
     environmentPrefix: 'YTC',
     performanceMode: 'balanced',
     enableParallelProcessing: true,
+    enableAutoFallback: true,
     preferMultimodal: true,
     defaultMaxTokens: 4096,
     defaultTemperature: 0.5
@@ -287,6 +288,7 @@ export default class YoutubeClipperPlugin extends Plugin {
                 },
                 performanceMode: this._settings.performanceMode || 'balanced',
                 enableParallelProcessing: this._settings.enableParallelProcessing || false,
+                enableAutoFallback: this._settings.enableAutoFallback ?? true,
                 preferMultimodal: this._settings.preferMultimodal || false,
                 onPerformanceSettingsChange: async (performanceMode: any, enableParallel: boolean, preferMultimodal: boolean) => {
                     this._settings.performanceMode = performanceMode;
@@ -333,7 +335,8 @@ export default class YoutubeClipperPlugin extends Plugin {
         enableParallel?: boolean,
         preferMultimodal?: boolean,
         maxTokens?: number,
-        temperature?: number
+        temperature?: number,
+        enableAutoFallback?: boolean
     ): Promise<string> {
         if (this.isUnloading) {
             ConflictPrevention.log('Plugin is unloading, cancelling video processing');
@@ -395,7 +398,9 @@ export default class YoutubeClipperPlugin extends Plugin {
             let aiResponse;
             try {
                 if (providerName) {
-                    aiResponse = await (aiService as any).processWith(providerName, prompt, model, undefined); // No images for now
+                    // Pass enableAutoFallback to control fallback behavior
+                    const shouldFallback = enableAutoFallback ?? true;
+                    aiResponse = await (aiService as any).processWith(providerName, prompt, model, undefined, shouldFallback);
                 } else {
                     aiResponse = await aiService.process(prompt);
                 }

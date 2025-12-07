@@ -392,10 +392,10 @@ return {
     }
 
     /**
-     * Process prompt using a specific provider name with automatic fallback.
-     * If the selected provider fails with quota/rate limit, tries other providers.
+     * Process prompt using a specific provider name with optional automatic fallback.
+     * If enableFallback is true and the selected provider fails with quota/rate limit, tries other providers.
      */
-    async processWith(providerName: string, prompt: string, overrideModel?: string, images?: (string | ArrayBuffer)[]): Promise<AIResponse> {
+    async processWith(providerName: string, prompt: string, overrideModel?: string, images?: (string | ArrayBuffer)[], enableFallback: boolean = true): Promise<AIResponse> {
         const provider = this.providers.find(p => p.name === providerName);
         if (!provider) {
             throw new Error(`AI provider not found: ${providerName}`);
@@ -423,6 +423,11 @@ return {
             throw new Error('Empty response from AI provider');
         } catch (error) {
             const err = error as Error;
+            
+            // If fallback is disabled, throw immediately
+            if (!enableFallback) {
+                throw new Error(MESSAGES.ERRORS.AI_PROCESSING(err.message));
+            }
             
             // If quota/rate limit error, try fallback to other providers
             if (this.isQuotaOrRateLimitError(err)) {
