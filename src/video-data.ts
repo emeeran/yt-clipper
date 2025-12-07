@@ -2,7 +2,7 @@ import { API_ENDPOINTS, API_LIMITS } from './ai/api';
 import { ErrorHandler } from './services/error-handler';
 import { MESSAGES } from './constants/index';
 import { ValidationUtils } from './validation';
-import { VideoAnalysisStrategy } from './types';
+import { VideoAnalysisStrategy } from './constants/video-optimization';
 import { VideoDataService, VideoData, CacheService } from './types';
 import { YouTubeTranscriptService } from './services/transcript-service';
 
@@ -205,11 +205,11 @@ export class YouTubeVideoService implements VideoDataService {
 
             // Extract duration
             const durationMatch = html.match(/"lengthSeconds":"(\d+)"/);
-            const duration = durationMatch ? parseInt(durationMatch[1]) : undefined;
+            const duration = durationMatch?.[1] ? parseInt(durationMatch[1]) : undefined;
 
             // Extract description
             const descriptionMatch = html.match(/"shortDescription":"([^"]+)"/);
-            const description = descriptionMatch ?
+            const description = descriptionMatch?.[1] ?
                 descriptionMatch[1].replace(/\\u0026/g, '&').replace(/\\n/g, '\n') :
                 undefined;
 

@@ -1,11 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "YouTube Clipper",
-  "version": "0.1",
-  "description": "Send the current YouTube video URL to the YouTubeClipper plugin for processing.",
+  "name": "YouTube Clipper for Obsidian",
+  "version": "1.0.0",
+  "description": "Send YouTube videos to Obsidian's YouTube Clipper plugin with one click.",
   "permissions": ["storage", "activeTab", "scripting", "clipboardWrite"],
   "host_permissions": ["*://*.youtube.com/*"],
-  "action": { "default_title": "YouTube Clipper" },
+  "action": {
+    "default_title": "YouTube Clipper",
+    "default_popup": null
+  },
   "background": {
     "service_worker": "background.js"
   },
@@ -20,7 +23,7 @@
   "commands": {
     "send-current-video": {
       "suggested_key": { "default": "Ctrl+Shift+Y", "mac": "Command+Shift+Y" },
-      "description": "Send current YouTube video URL to the Clipper endpoint"
+      "description": "Send current YouTube video URL to Obsidian"
     }
   }
 }

@@ -1,8 +1,6 @@
-import { performanceMonitor } from '../utils/performance-monitor';
-
 /**
  * Centralized performance tracking service for the YouTube Clipper plugin
- * Integrates with all service performance metrics and provides unified reporting
+ * Unified performance monitoring with metrics collection and reporting
  */
 
 export interface ServicePerformanceMetrics {
@@ -18,23 +16,25 @@ export interface PluginPerformanceReport {
     timestamp: string;
     uptime: number;
     services: Record<string, {
-        totalOperations: number;
-        averageResponseTime: number;
-        successRate: number;
-        errorCount: number;
-        slowestOperation: {
+        totalOperations?: number;
+        averageResponseTime?: number;
+        successRate?: number;
+        errorCount?: number;
+        slowestOperation?: {
             name: string;
             duration: number;
         };
-        fastestOperation: {
+        fastestOperation?: {
             name: string;
             duration: number;
         };
+        [key: string]: unknown;
     }>;
     systemMetrics: {
         memoryUsage?: number;
         cacheHitRate?: number;
-        httpMetrics?: any;
+        httpMetrics?: unknown;
+        cacheMetrics?: unknown;
     };
     recommendations: string[];
 }
@@ -124,6 +124,34 @@ export class PerformanceTracker {
     }
 
     /**
+     * Get metrics summary for a category (compatible with PerformanceMonitor API)
+     */
+    getMetricsSummary(category: string): {
+        count: number;
+        average: number;
+        min: number;
+        max: number;
+        successRate: number;
+    } {
+        const metrics = this.serviceMetrics.get(category) || [];
+
+        if (metrics.length === 0) {
+            return { count: 0, average: 0, min: 0, max: 0, successRate: 0 };
+        }
+
+        const durations = metrics.map(m => m.duration).sort((a, b) => a - b);
+        const successCount = metrics.filter(m => m.success).length;
+
+        return {
+            count: metrics.length,
+            average: durations.reduce((a, b) => a + b, 0) / durations.length,
+            min: Math.min(...durations),
+            max: Math.max(...durations),
+            successRate: successCount / metrics.length
+        };
+    }
+
+    /**
      * Generate comprehensive performance report
      */
     generateReport(): PluginPerformanceReport {
@@ -184,6 +212,9 @@ export class PerformanceTracker {
         );
 
         const extreme = sorted[0];
+        if (!extreme) {
+            return { name: 'N/A', duration: 0 };
+        }
         return {
             name: `${extreme.operation}${extreme.metadata ? ` (${JSON.stringify(extreme.metadata)})` : ''}`,
             duration: extreme.duration
@@ -226,16 +257,21 @@ export class PerformanceTracker {
 
         // Check response times
         Object.entries(report.services).forEach(([service, stats]) => {
-            if (stats.averageResponseTime > 5000) {
-                recommendations.push(`${service} average response time exceeds 5 seconds (${stats.averageResponseTime.toFixed(0)}ms)`);
+            const avgTime = stats.averageResponseTime ?? 0;
+            const successRate = stats.successRate ?? 1;
+            const errorCount = stats.errorCount ?? 0;
+            const totalOps = stats.totalOperations ?? 1;
+
+            if (avgTime > 5000) {
+                recommendations.push(`${service} average response time exceeds 5 seconds (${avgTime.toFixed(0)}ms)`);
             }
 
-            if (stats.successRate < 0.95) {
-                recommendations.push(`${service} success rate below 95% (${(stats.successRate * 100).toFixed(1)}%)`);
+            if (successRate < 0.95) {
+                recommendations.push(`${service} success rate below 95% (${(successRate * 100).toFixed(1)}%)`);
             }
 
-            if (stats.errorCount > stats.totalOperations * 0.1) {
-                recommendations.push(`${service} error rate is high (${stats.errorCount}/${stats.totalOperations})`);
+            if (errorCount > totalOps * 0.1) {
+                recommendations.push(`${service} error rate is high (${errorCount}/${totalOps})`);
             }
         });
 

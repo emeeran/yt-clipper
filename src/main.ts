@@ -119,12 +119,13 @@ export default class YoutubeClipperPlugin extends Plugin {
 
     private setupProtocolHandler(): void {
         try {
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            this.registerObsidianProtocolHandler?.('youtube-clipper', (params: Record<string, string>) => {
+            this.registerObsidianProtocolHandler('youtube-clipper', (params) => {
+                console.log('[YT-Clipper] Protocol received:', params);
                 this.urlHandler?.handleProtocol(params);
             });
+            console.log('[YT-Clipper] Protocol handler registered successfully');
         } catch (error) {
+            console.error('[YT-Clipper] Protocol handler registration failed:', error);
             logger.debug('Protocol handler not available', 'Plugin');
         }
     }
@@ -194,18 +195,24 @@ export default class YoutubeClipperPlugin extends Plugin {
     }
 
     private async safeShowUrlModal(initialUrl?: string): Promise<void> {
-        console.log("[YT-CLIPPER] safeShowUrlModal called", { initialUrl, hasModalManager: !!this.modalManager, hasServiceContainer: !!this.serviceContainer });
-        if (!this.modalManager || !this.serviceContainer) return;
+        console.log("[YT-CLIPPER] safeShowUrlModal called", { 
+            initialUrl, 
+            hasModalManager: !!this.modalManager, 
+            hasServiceContainer: !!this.serviceContainer,
+            modalState: this.modalManager?.getState?.() 
+        });
+        
+        if (!this.modalManager || !this.serviceContainer) {
+            console.error("[YT-CLIPPER] Cannot show modal - missing services");
+            return;
+        }
 
-        await this.safeOperation(async () => {
-            return this.modalManager!.openModal(
-                initialUrl,
-                () => this.openYouTubeUrlModal(initialUrl),
-                () => {
-                    logger.debug('Modal closed', 'Plugin', { url: initialUrl });
-                }
-            );
-        }, 'Show URL Modal');
+        // Direct modal opening for reliability
+        try {
+            await this.openYouTubeUrlModal(initialUrl);
+        } catch (error) {
+            console.error("[YT-CLIPPER] Failed to open modal:", error);
+        }
     }
 
     private async openYouTubeUrlModal(initialUrl?: string): Promise<void> {

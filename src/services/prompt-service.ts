@@ -93,7 +93,7 @@ MULTIMODAL ANALYSIS INSTRUCTIONS:
             .replace(/__VIDEO_URL__/g, videoUrl)
             .replace(/__VIDEO_ID__/g, videoId || 'unknown')
             .replace(/__EMBED_URL__/g, embedUrl)
-            .replace(/__DATE__/g, new Date().toISOString().split('T')[0])
+            .replace(/__DATE__/g, new Date().toISOString().split('T')[0] ?? '')
             .replace(/__TIMESTAMP__/g, new Date().toISOString());
     }
 

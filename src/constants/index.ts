@@ -4,7 +4,7 @@
  */
 
 // API and configuration constants
-export * from './api';
+export * from '../ai/api';
 
 // User-facing messages
 export * from './messages';

@@ -1,127 +1,125 @@
-// Injects a "Clip" button into the YouTube player and handles sending the current URL
+/**
+ * YouTube Clipper Content Script
+ * Injects a "Clip" button into the YouTube player
+ */
 (function () {
   const BUTTON_ID = 'youtube-clipper-button';
+  const TOAST_ID = 'youtube-clipper-toast';
 
+  // Find YouTube player controls
   function getVideoControls() {
-    // try a few known selectors for the right control area in the YouTube player
-    return document.querySelector('.ytp-right-controls') || document.querySelector('#top-level-buttons-computed') || document.querySelector('#info-contents');
+    return (
+      document.querySelector('.ytp-right-controls') ||
+      document.querySelector('#top-level-buttons-computed') ||
+      document.querySelector('#info-contents')
+    );
   }
 
+  // Create the Clip button
   function createButton() {
     if (document.getElementById(BUTTON_ID)) return null;
 
     const btn = document.createElement('button');
     btn.id = BUTTON_ID;
-    btn.title = 'Send to YouTube Clipper';
-    btn.style.cssText = 'margin-left:8px;padding:6px 8px;background:#ff0000;color:#fff;border-radius:2px;border:none;font-weight:600;cursor:pointer';
-    btn.textContent = 'Clip';
+    btn.title = 'Send to YouTube Clipper in Obsidian (Ctrl+Shift+Y)';
+    btn.textContent = '✂ Clip';
+    btn.style.cssText = `
+      margin-left: 8px;
+      padding: 6px 12px;
+      background: linear-gradient(135deg, #7c3aed, #5b21b6);
+      color: white;
+      border-radius: 4px;
+      border: none;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    `.replace(/\s+/g, ' ');
+
+    btn.addEventListener('mouseenter', () => {
+      btn.style.transform = 'scale(1.05)';
+      btn.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+    });
+    btn.addEventListener('mouseleave', () => {
+      btn.style.transform = 'scale(1)';
+      btn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+    });
     btn.addEventListener('click', onClick);
+    
     return btn;
   }
 
-  async function getWebhookUrl() {
-    return new Promise((resolve) => {
-      try {
-        chrome.storage && chrome.storage.sync && chrome.storage.sync.get(['webhookUrl'], (res) => {
-          resolve(res && res.webhookUrl ? res.webhookUrl : '');
-        });
-      } catch (e) {
-        resolve('');
-      }
-    });
-  }
-
-  async function sendUrl(currentUrl) {
-    // Simplified behavior per user request:
-    // 1) copy the URL to the clipboard
-    // 2) open the Obsidian protocol handler `obsidian://youtube-clipper?url=...`
-    // This opens/focuses Obsidian (if the OS/Obsidian allows it) and relies on
-    // the plugin's registered protocol handler to process the URL.
-    //
-    // NOTE: A Chrome extension cannot send global OS-level keyboard shortcuts
-    // or synthesize keypresses to other native applications for security
-    // reasons. If you need a specific plugin command executed, install the
-    // Advanced URI plugin (or use the plugin's custom protocol) so the
-    // extension can invoke it via an `obsidian://` link.
-    try {
-      await navigator.clipboard.writeText(currentUrl);
-      showToast('URL copied to clipboard');
-    } catch (e) {
-      console.warn('Clipper: clipboard write failed', e);
-    }
-
-    try {
-      const base = 'obsidian://youtube-clipper';
-      const params = new URLSearchParams();
-      params.set('url', currentUrl);
-      const uri = base + '?' + params.toString();
-      // Opening the obsidian:// URI should focus Obsidian on most systems
-      // and hand the URL to the plugin via the registered handler.
-      try {
-        window.open(uri);
-        showToast('Opening Obsidian...');
-      } catch (e) {
-        // fallback to a generic obsidian open if the custom protocol isn't handled
-        try {
-          window.open('obsidian://open');
-        } catch (e2) {
-          console.warn('Clipper: failed to open obsidian uri', e2);
-        }
-      }
-    } catch (e) {
-      console.warn('Clipper: failed to build/open obsidian uri', e);
-    }
-  }
-
-  function showToast(text) {
-    const id = 'youtube-clipper-toast';
-    let el = document.getElementById(id);
+  // Show toast notification
+  function showToast(text, isError = false) {
+    let el = document.getElementById(TOAST_ID);
     if (!el) {
       el = document.createElement('div');
-      el.id = id;
-      el.style.cssText = 'position:fixed;right:20px;bottom:80px;background:rgba(0,0,0,0.85);color:#fff;padding:10px 14px;border-radius:6px;z-index:999999;font-size:13px';
+      el.id = TOAST_ID;
+      el.style.cssText = `
+        position: fixed;
+        right: 20px;
+        bottom: 80px;
+        background: ${isError ? 'rgba(220, 38, 38, 0.95)' : 'rgba(124, 58, 237, 0.95)'};
+        color: white;
+        padding: 12px 18px;
+        border-radius: 8px;
+        z-index: 999999;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        transition: opacity 0.3s ease;
+      `.replace(/\s+/g, ' ');
       document.body.appendChild(el);
     }
     el.textContent = text;
     el.style.opacity = '1';
-    setTimeout(() => {
-      try { el.style.opacity = '0'; } catch (e) {}
-    }, 1800);
+    setTimeout(() => { el.style.opacity = '0'; }, 2500);
   }
 
-  function onClick() {
-    const url = location.href;
-    // Copy to clipboard immediately so the URL is available even if the POST/open step fails
+  // Send URL to Obsidian
+  async function sendToObsidian(url) {
+    // Copy to clipboard
     try {
-      navigator.clipboard && navigator.clipboard.writeText && navigator.clipboard.writeText(url).then(() => {
-        showToast('URL copied to clipboard');
-      }).catch(() => {
-        // ignore
-      });
-    } catch (e) { /* ignore */ }
-    sendUrl(url);
+      await navigator.clipboard.writeText(url);
+      showToast('✓ URL copied, opening Obsidian...');
+    } catch (e) {
+      console.warn('Clipper: clipboard write failed', e);
+    }
+
+    // Open Obsidian protocol
+    try {
+      const params = new URLSearchParams({ url });
+      window.open('obsidian://youtube-clipper?' + params.toString());
+    } catch (e) {
+      showToast('✗ Failed to open Obsidian', true);
+      console.error('Clipper: failed to open obsidian', e);
+    }
   }
 
-  // Listen for messages from the background (keyboard command)
-  chrome.runtime && chrome.runtime.onMessage && chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    if (msg && msg.type === 'send-current-video') {
-      sendUrl(location.href);
+  // Handle button click
+  function onClick() {
+    sendToObsidian(location.href);
+  }
+
+  // Listen for keyboard shortcut from background
+  chrome.runtime?.onMessage?.addListener((msg) => {
+    if (msg?.type === 'send-current-video') {
+      sendToObsidian(location.href);
     }
   });
 
-  // MutationObserver to handle SPA navigations and add the button when player appears
+  // Watch for YouTube SPA navigation and add button when player appears
   const observer = new MutationObserver(() => {
     const controls = getVideoControls();
-    if (controls) {
-      if (!document.getElementById(BUTTON_ID)) {
-        const btn = createButton();
-        if (btn) controls.appendChild(btn);
-      }
+    if (controls && !document.getElementById(BUTTON_ID)) {
+      const btn = createButton();
+      if (btn) controls.appendChild(btn);
     }
   });
 
+  // Initialize
   function start() {
-    // initial try
     const controls = getVideoControls();
     if (controls && !document.getElementById(BUTTON_ID)) {
       const btn = createButton();
@@ -130,6 +128,10 @@
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
-  // Start after short delay to let player load
-  setTimeout(start, 1000);
+  // Wait for page to load
+  if (document.readyState === 'complete') {
+    setTimeout(start, 500);
+  } else {
+    window.addEventListener('load', () => setTimeout(start, 500));
+  }
 })();

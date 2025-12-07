@@ -65,7 +65,8 @@ export class UrlHandler {
             // 3. Content is ONLY a YouTube URL and file is very new/small AND NOT in output path
             const trimmedContent = content.trim();
             const lines = trimmedContent.split('\n').filter(line => line.trim().length > 0);
-            const isUrlOnly = lines.length === 1 && ValidationUtils.isValidYouTubeUrl(lines[0]);
+            const firstLine = lines[0] ?? '';
+            const isUrlOnly = lines.length === 1 && ValidationUtils.isValidYouTubeUrl(firstLine);
 
             if (isUrlOnly && content.length < 200) {
                 const fileAge = Date.now() - file.stat.ctime;
@@ -224,7 +225,7 @@ export class UrlHandler {
                 content
             };
 
-            logger.info('CREATE EVENT - detected temp note', 'UrlHandler', result);
+            logger.info('CREATE EVENT - detected temp note', 'UrlHandler', { ...result });
             this.handleUrlSafely(result);
 
         } catch (error) {
@@ -277,7 +278,7 @@ export class UrlHandler {
                 content
             };
 
-            logger.info('ACTIVE-LEAF-CHANGE EVENT - detected temp note', 'UrlHandler', result);
+            logger.info('ACTIVE-LEAF-CHANGE EVENT - detected temp note', 'UrlHandler', { ...result });
             this.handleUrlSafely(result);
 
         } catch (error) {
@@ -299,7 +300,7 @@ export class UrlHandler {
                     source: 'protocol'
                 };
 
-                logger.info('Protocol handler received valid URL', 'UrlHandler', result);
+                logger.info('Protocol handler received valid URL', 'UrlHandler', { ...result });
 
                 // Defer into the plugin main loop
                 setTimeout(() => {
@@ -344,7 +345,7 @@ export class UrlHandler {
                     source: 'clipboard'
                 };
 
-                logger.info('URL found in clipboard', 'UrlHandler', result);
+                logger.info('URL found in clipboard', 'UrlHandler', { ...result });
                 this.onUrlDetected(result);
                 return;
             }

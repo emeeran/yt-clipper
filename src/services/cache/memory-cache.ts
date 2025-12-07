@@ -190,7 +190,9 @@ export class MemoryCacheService implements CacheService {
         if (this.accessOrder.length === 0) return;
 
         const lruKey = this.accessOrder.shift();
-        this.cache.delete(lruKey);
+        if (lruKey) {
+            this.cache.delete(lruKey);
+        }
         this.metrics.evictions++;
         this.metrics.size = this.cache.size;
     }

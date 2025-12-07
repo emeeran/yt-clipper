@@ -7,24 +7,22 @@ module.exports = {
         '**/*.(test|spec).+(ts|tsx|js)'
     ],
     transform: {
-        '^.+\\.(ts|tsx)$': 'ts-jest'
+        '^.+\\.(ts|tsx)$': ['ts-jest', {
+            tsconfig: 'tsconfig.json'
+        }]
     },
     collectCoverageFrom: [
         'src/**/*.{ts,tsx}',
         '!src/**/*.d.ts',
-        '!src/main.ts', // Main plugin file is hard to test in isolation
+        '!src/main.ts',
         '!src/**/index.ts'
     ],
     coverageDirectory: 'coverage',
     coverageReporters: ['text', 'lcov', 'html'],
     setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
-    moduleNameMapping: {
+    moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/src/$1',
-        '^@tests/(.*)$': '<rootDir>/tests/$1'
-    },
-    globals: {
-        'ts-jest': {
-            tsconfig: 'tsconfig.json'
-        }
+        '^@tests/(.*)$': '<rootDir>/tests/$1',
+        '^obsidian$': '<rootDir>/tests/__mocks__/obsidian.ts'
     }
 };

@@ -150,6 +150,7 @@ return null;
 
         for (let i = 0; i < textElements.length; i++) {
             const element = textElements[i];
+            if (!element) continue;
             const text = element.textContent || '';
             const start = parseFloat(element.getAttribute('start') || '0');
             const duration = parseFloat(element.getAttribute('dur') || '0');
@@ -295,6 +296,7 @@ return null;
         const keyMoments: Array<{time: number, text: string}> = [];
         for (let i = 0; i < totalSegments && keyMoments.length < count; i += step) {
             const segment = meaningfulSegments[i];
+            if (!segment) continue;
             keyMoments.push({
                 time: segment.start,
                 text: segment.text

@@ -187,21 +187,25 @@ export class YouTubeUrlModal extends BaseModal {
 
         this.pasteButton.addEventListener('click', () => this.handleSmartPaste());
         this.pasteButton.addEventListener('mouseenter', () => {
-            this.pasteButton.style.background = 'var(--interactive-accent-hover)';
+            if (this.pasteButton) this.pasteButton.style.background = 'var(--interactive-accent-hover)';
         });
         this.pasteButton.addEventListener('mouseleave', () => {
-            this.pasteButton.style.background = 'var(--interactive-accent)';
+            if (this.pasteButton) this.pasteButton.style.background = 'var(--interactive-accent)';
         });
 
         // Focus effects
         this.urlInput.addEventListener('focus', () => {
-            this.urlInput.style.borderColor = 'var(--interactive-accent)';
-            this.urlInput.style.boxShadow = '0 0 0 2px rgba(99, 102, 241, 0.2)';
+            if (this.urlInput) {
+                this.urlInput.style.borderColor = 'var(--interactive-accent)';
+                this.urlInput.style.boxShadow = '0 0 0 2px rgba(99, 102, 241, 0.2)';
+            }
         });
 
         this.urlInput.addEventListener('blur', () => {
-            this.urlInput.style.borderColor = 'var(--background-modifier-border)';
-            this.urlInput.style.boxShadow = 'none';
+            if (this.urlInput) {
+                this.urlInput.style.borderColor = 'var(--background-modifier-border)';
+                this.urlInput.style.boxShadow = 'none';
+            }
         });
 
         // Validation message container
@@ -268,17 +272,17 @@ export class YouTubeUrlModal extends BaseModal {
         ];
 
         formatOptions.forEach(option => {
-            const optionEl = this.formatSelect.createEl('option');
+            const optionEl = this.formatSelect!.createEl('option');
             optionEl.value = option.value;
             optionEl.textContent = option.text;
         });
 
         // Set default format selection
-        this.formatSelect.value = 'executive-summary';
+        this.formatSelect!.value = 'executive-summary';
 
         // Update format when changed
-        this.formatSelect.addEventListener('change', () => {
-            this.format = this.formatSelect.value as OutputFormat;
+        this.formatSelect!.addEventListener('change', () => {
+            this.format = this.formatSelect?.value as OutputFormat ?? 'executive-summary';
         });
 
         // Provider dropdown
@@ -322,17 +326,17 @@ export class YouTubeUrlModal extends BaseModal {
         ];
 
         providerOptions.forEach(option => {
-            const optionEl = this.providerSelect.createEl('option');
+            const optionEl = this.providerSelect!.createEl('option');
             optionEl.value = option.value;
             optionEl.textContent = option.text;
         });
 
         // Set default provider selection
-        this.providerSelect.value = 'Google Gemini';
+        this.providerSelect!.value = 'Google Gemini';
 
         // Update provider when changed
-        this.providerSelect.addEventListener('change', () => {
-            this.selectedProvider = this.providerSelect.value;
+        this.providerSelect!.addEventListener('change', () => {
+            this.selectedProvider = this.providerSelect?.value;
 
             // Update the model dropdown to show models for the selected provider
             // Use the cached model options if available
@@ -443,17 +447,17 @@ new Notice('Failed to refresh models. Using cached options.');
         ];
 
         modelOptions.forEach(option => {
-            const optionEl = this.modelSelect.createEl('option');
+            const optionEl = this.modelSelect!.createEl('option');
             optionEl.value = option.value;
             optionEl.textContent = option.text;
         });
 
         // Set default model selection
-        this.modelSelect.value = 'gemini-2.5-pro';
+        this.modelSelect!.value = 'gemini-2.5-pro';
 
         // Update model when changed
-        this.modelSelect.addEventListener('change', () => {
-            this.selectedModel = this.modelSelect.value;
+        this.modelSelect!.addEventListener('change', () => {
+            this.selectedModel = this.modelSelect?.value;
         });
     }
 
@@ -464,6 +468,7 @@ new Notice('Failed to refresh models. Using cached options.');
         if (!this.modelSelect || !this.providerSelect) return;
 
         // Clear existing options
+        if (!this.modelSelect || !this.providerSelect) return;
         this.modelSelect.innerHTML = '';
 
         // Get the currently selected provider
@@ -472,7 +477,7 @@ new Notice('Failed to refresh models. Using cached options.');
         // Get available models for the current provider
         let models: string[] = [];
         if (modelOptionsMap && modelOptionsMap[currentProvider]) {
-            models = modelOptionsMap[currentProvider];
+            models = modelOptionsMap[currentProvider] ?? [];
         } else {
             // Fallback to static options if not available in dynamic map
             switch(currentProvider) {
@@ -492,7 +497,7 @@ new Notice('Failed to refresh models. Using cached options.');
 
         // Add models to dropdown with friendly names
         models.forEach(model => {
-            const option = this.modelSelect.createEl('option');
+            const option = this.modelSelect!.createEl('option');
             option.value = model;
             // Format model names to be more user-friendly
             option.textContent = this.formatModelName(model);
@@ -502,7 +507,7 @@ new Notice('Failed to refresh models. Using cached options.');
         if (this.selectedModel && models.includes(this.selectedModel)) {
             this.modelSelect.value = this.selectedModel;
         } else if (models.length > 0) {
-            this.modelSelect.value = models[0];
+            this.modelSelect.value = models[0] ?? '';
             this.selectedModel = models[0];
         }
     }
@@ -869,7 +874,7 @@ new Notice('Failed to refresh models. Using cached options.');
         // URL input change
         if (this.urlInput) {
             this.urlInput.addEventListener('input', () => {
-                this.url = this.urlInput.value;
+                this.url = this.urlInput?.value ?? '';
                 this.updateProcessButtonState();
             });
         }
@@ -961,9 +966,9 @@ new Notice('Failed to refresh models. Using cached options.');
             this.updateProgress(75, 'Processing with AI...');
 
             // Set format, provider, and model based on dropdown selections
-            this.format = this.formatSelect.value as OutputFormat;
-            this.selectedProvider = this.providerSelect.value;
-            this.selectedModel = this.modelSelect.value;
+            this.format = (this.formatSelect?.value as OutputFormat) ?? 'executive-summary';
+            this.selectedProvider = this.providerSelect?.value;
+            this.selectedModel = this.modelSelect?.value;
 
             // Call the process function
             const filePath = await this.options.onProcess(

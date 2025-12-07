@@ -70,13 +70,15 @@ export class ValidationUtils {
         let result: string | null = null;
 
         // Direct index access for most common pattern first (micro-optimization)
-        let match = cleanUrl.match(this.URL_PATTERNS[0]); // Most common pattern first
+        const firstPattern = this.URL_PATTERNS[0];
+        let match = firstPattern ? cleanUrl.match(firstPattern) : null;
         if (match?.[1] && this.VIDEO_ID_REGEX.test(match[1])) {
             result = match[1];
         } else {
             // Fallback to remaining patterns
             for (let i = 1; i < this.URL_PATTERNS.length && !result; i++) {
-                match = cleanUrl.match(this.URL_PATTERNS[i]);
+                const pattern = this.URL_PATTERNS[i];
+                match = pattern ? cleanUrl.match(pattern) : null;
                 if (match?.[1] && this.VIDEO_ID_REGEX.test(match[1])) {
                     result = match[1];
                 }

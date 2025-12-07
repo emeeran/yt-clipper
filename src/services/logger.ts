@@ -50,6 +50,13 @@ export class Logger {
         return Logger.instance;
     }
 
+    /**
+     * Reset the singleton instance (for testing only)
+     */
+    public static resetInstance(): void {
+        Logger.instance = undefined as unknown as Logger;
+    }
+
     private shouldLog(level: LogLevel): boolean {
         return level >= this.config.level;
     }

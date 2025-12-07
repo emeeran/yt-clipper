@@ -156,8 +156,9 @@ export class UserPreferencesService {
         let mostUsedFormat: OutputFormat = 'executive-summary';
 
         for (const [format, count] of Object.entries(formatUsage)) {
-            if (count > maxUsage) {
-                maxUsage = count;
+            const countValue = typeof count === 'number' ? count : 0;
+            if (countValue > maxUsage) {
+                maxUsage = countValue;
                 mostUsedFormat = format as OutputFormat;
             }
         }
@@ -240,8 +241,9 @@ export class UserPreferencesService {
         let maxFormatUsage = 0;
 
         for (const [format, count] of Object.entries(formatUsage)) {
-            if (count > maxFormatUsage) {
-                maxFormatUsage = count;
+            const countValue = typeof count === 'number' ? count : 0;
+            if (countValue > maxFormatUsage) {
+                maxFormatUsage = countValue;
                 favoriteFormat = format as OutputFormat;
             }
         }
@@ -250,8 +252,9 @@ export class UserPreferencesService {
         let maxProviderUsage = 0;
 
         for (const [provider, count] of Object.entries(providerUsage)) {
-            if (count > maxProviderUsage) {
-                maxProviderUsage = count;
+            const countValue = typeof count === 'number' ? count : 0;
+            if (countValue > maxProviderUsage) {
+                maxProviderUsage = countValue;
                 favoriteProvider = provider;
             }
         }

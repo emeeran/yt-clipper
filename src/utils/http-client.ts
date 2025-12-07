@@ -19,6 +19,7 @@ interface RequestMetrics {
     statusCode?: number;
     error?: string;
     retryCount: number;
+    timestamp: number;
 }
 
 interface ActiveRequest {
@@ -203,7 +204,7 @@ export class OptimizedHttpClient {
     private processQueue(): void {
         if (this.pendingQueue.length > 0 && this.activeRequests.size < this.maxConcurrent) {
             const resolve = this.pendingQueue.shift();
-            resolve();
+            resolve?.();
         }
     }
 
@@ -217,9 +218,10 @@ export class OptimizedHttpClient {
     /**
      * Record request metrics
      */
-    private recordRequestMetrics(metrics: Omit<RequestMetrics, 'retryCount'> & Partial<RequestMetrics>): void {
+    private recordRequestMetrics(metrics: Omit<RequestMetrics, 'retryCount' | 'timestamp'> & Partial<RequestMetrics>): void {
         const metric: RequestMetrics = {
             retryCount: 0,
+            timestamp: Date.now(),
             ...metrics
         };
 
@@ -322,7 +324,7 @@ export class OptimizedHttpClient {
             if (!groups[key]) {
                 groups[key] = [];
             }
-            groups[key].push(metric);
+            groups[key]!.push(metric);
         });
 
         return groups;

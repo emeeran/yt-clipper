@@ -1,11 +1,11 @@
 import { logger } from './logger';
-import { RetryService, RetryService as Retry } from './retry-service';
+import { RetryService } from './retry-service';
 import { AIService as IAIService, AIProvider, AIResponse, YouTubePluginSettings } from '../types';
 import { MESSAGES } from '../constants/index';
 import { PERFORMANCE_PRESETS } from '../performance';
 import { PROVIDER_MODEL_OPTIONS, PROVIDER_MODEL_LIST_URLS, PROVIDER_MODEL_REGEX } from '../ai/api';
 import { OptimizedHttpClient } from '../utils/http-client';
-import { performanceMonitor } from '../utils/performance-monitor';
+import { performanceTracker } from './performance-tracker';
 
 /**
  * AI service that manages multiple providers with parallel processing support
@@ -104,7 +104,7 @@ export class AIService implements IAIService {
      * Special handling for Ollama to query the actual running instance.
      */
     async fetchLatestModelsForProvider(providerName: string): Promise<string[]> {
-        return await performanceMonitor.measureOperation(`fetch-models-${providerName}`, async () => {
+        return await performanceTracker.measureOperation('ai-service', `fetch-models-${providerName}`, async () => {
             // Special handling for Ollama to query the actual running instance
             if (providerName === 'Ollama') {
                 try {
@@ -207,7 +207,7 @@ export class AIService implements IAIService {
             throw new Error('Valid prompt is required');
         }
 
-        return await performanceMonitor.measureOperation('ai-process', async () => {
+        return await performanceTracker.measureOperation('ai-service', 'ai-process', async () => {
             // Use parallel processing if enabled
             if (this.settings.enableParallelProcessing) {
                 return this.processParallel(prompt, images);
@@ -335,9 +335,9 @@ return {
         for (const result of results) {
             if (result.status === 'fulfilled' && result.value.success) {
                 return {
-                    content: result.value.content,
-                    provider: result.value.provider,
-                    model: result.value.model
+                    content: result.value.content ?? '',
+                    provider: result.value.provider ?? '',
+                    model: result.value.model ?? ''
                 };
             }
         }
@@ -431,11 +431,11 @@ return {
     } {
         return {
             httpMetrics: this.httpClient.getMetrics(),
-            aiProcessingMetrics: performanceMonitor.getMetricsSummary('ai-process'),
+            aiProcessingMetrics: performanceTracker.getMetricsSummary('ai-service'),
             modelFetchMetrics: Object.fromEntries(
                 this.providers.map(provider => [
                     `fetch-models-${provider.name}`,
-                    performanceMonitor.getMetricsSummary(`fetch-models-${provider.name}`)
+                    performanceTracker.getMetricsSummary(`fetch-models-${provider.name}`)
                 ])
             )
         };
