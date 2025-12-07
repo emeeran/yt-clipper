@@ -6,6 +6,28 @@ import { MESSAGES } from '../constants/index';
  * Groq AI provider implementation
  */
 
+/**
+ * Extract clean error message from verbose API response
+ */
+function formatGroqError(rawMessage: string): string {
+    // Extract retry time if present
+    const retryMatch = rawMessage.match(/retry in ([\d.]+)/i) || rawMessage.match(/(\d+)\s*seconds?/i);
+    const retryInfo = retryMatch ? ` Retry in ${Math.ceil(parseFloat(retryMatch[1]))}s.` : '';
+    
+    if (rawMessage.toLowerCase().includes('tokens per minute')) {
+        return `Groq token limit reached.${retryInfo} Try a shorter video or wait.`;
+    }
+    
+    if (rawMessage.toLowerCase().includes('requests per')) {
+        return `Groq request limit reached.${retryInfo}`;
+    }
+    
+    if (rawMessage.toLowerCase().includes('quota')) {
+        return `Groq quota exceeded.${retryInfo} Check your plan at console.groq.com`;
+    }
+    
+    return `Groq API limit reached.${retryInfo}`;
+}
 
 export class GroqProvider extends BaseAIProvider {
     readonly name = 'Groq';
@@ -35,20 +57,14 @@ export class GroqProvider extends BaseAIProvider {
         }
 
         if (response.status === 429) {
+            let errorMessage = '';
             try {
                 const errorData = await response.json();
-                const errorMessage = errorData.error?.message || errorData.message || '';
-
-                if (errorMessage.toLowerCase().includes('quota')) {
-                    throw new Error(`Groq API quota exceeded: ${errorMessage}. Please check your plan and billing details.`);
-                } else if (errorMessage.toLowerCase().includes('rate')) {
-                    throw new Error(`Groq API rate limit exceeded: ${errorMessage}. Please wait a moment and try again.`);
-                } else {
-                    throw new Error('Groq API rate limit exceeded. Please wait and try again.');
-                }
+                errorMessage = errorData?.error?.message || errorData?.message || '';
             } catch {
-                throw new Error('Groq API rate limit exceeded. Please wait and try again.');
+                // Ignore JSON parse errors
             }
+            throw new Error(formatGroqError(errorMessage));
         }
 
         if (!response.ok) {

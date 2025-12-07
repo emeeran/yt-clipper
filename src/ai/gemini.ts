@@ -6,6 +6,26 @@ import { MESSAGES } from '../constants/index';
  * Google Gemini AI provider implementation
  */
 
+/**
+ * Extract clean quota error message from verbose API response
+ */
+function formatQuotaError(rawMessage: string, provider: string): string {
+    // Extract retry time if present
+    const retryMatch = rawMessage.match(/retry in ([\d.]+)s/i);
+    const retryInfo = retryMatch ? ` Retry in ${Math.ceil(parseFloat(retryMatch[1]))}s.` : '';
+    
+    // Check for free tier exhaustion
+    if (rawMessage.includes('limit: 0') || rawMessage.includes('free_tier')) {
+        return `${provider} free tier quota exhausted.${retryInfo} Upgrade your plan or wait for quota reset.`;
+    }
+    
+    // Generic quota exceeded
+    if (rawMessage.toLowerCase().includes('quota exceeded')) {
+        return `${provider} API quota exceeded.${retryInfo} Check your usage at https://ai.google.dev/usage`;
+    }
+    
+    return `${provider} API limit reached.${retryInfo}`;
+}
 
 export class GeminiProvider extends BaseAIProvider {
     readonly name = 'Google Gemini';
@@ -39,24 +59,18 @@ export class GeminiProvider extends BaseAIProvider {
             }
 
             if (response.status === 403) {
-                throw new Error('Gemini API quota exceeded or billing required. Please check your plan and billing details.');
+                const errorData = await this.safeJsonParse(response);
+                const errorMessage = errorData?.error?.message || '';
+                if (errorMessage.toLowerCase().includes('quota') || errorMessage.toLowerCase().includes('billing')) {
+                    throw new Error(formatQuotaError(errorMessage, 'Gemini'));
+                }
+                throw new Error(`Gemini API access denied. Please verify your API key has access to this model.`);
             }
 
             if (response.status === 429) {
-                try {
-                    const errorData = await response.json();
-                    const errorMessage = errorData.error?.message || errorData.message || '';
-
-                    if (errorMessage.toLowerCase().includes('quota')) {
-                        throw new Error(`Gemini API quota exceeded: ${errorMessage}. Please check your plan and billing details.`);
-                    } else if (errorMessage.toLowerCase().includes('rate')) {
-                        throw new Error(`Gemini API rate limit exceeded: ${errorMessage}. Please wait a moment and try again.`);
-                    } else {
-                        throw new Error(`Gemini API rate limit exceeded. Please wait and try again.`);
-                    }
-                } catch {
-                    throw new Error('Gemini API rate limit exceeded. Please wait and try again.');
-                }
+                const errorData = await this.safeJsonParse(response);
+                const errorMessage = errorData?.error?.message || errorData?.message || '';
+                throw new Error(formatQuotaError(errorMessage, 'Gemini'));
             }
 
             if (!response.ok) {

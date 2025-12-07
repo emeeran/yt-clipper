@@ -153,15 +153,35 @@ if (showRetryAction) {
 
     /**
      * Detect if an error is quota/billing related
+     * Uses specific phrases to avoid false positives
      */
     static isQuotaError(error: Error): boolean {
         const errorMessage = error.message.toLowerCase();
-        const quotaKeywords = [
-            'quota', 'limit', 'exceeded', 'rate', 'billing', 'payment',
-            'credit', 'balance', 'insufficient', '429', 'usage'
+        
+        // Specific rate limit/quota phrases (not just keywords)
+        const quotaPhrases = [
+            'quota exceeded',
+            'rate limit',
+            'rate_limit',
+            'too many requests',
+            'billing required',
+            'payment required',
+            'credit exhausted',
+            'insufficient credits',
+            'insufficient balance',
+            'usage limit',
+            'api limit exceeded',
+            'requests per minute',
+            'requests per second',
+            'resource_exhausted'
         ];
 
-        return quotaKeywords.some(keyword => errorMessage.includes(keyword));
+        // Check for HTTP 429 status code in message
+        if (errorMessage.includes('429')) {
+            return true;
+        }
+
+        return quotaPhrases.some(phrase => errorMessage.includes(phrase));
     }
 
     /**

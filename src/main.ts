@@ -8,7 +8,7 @@ import { ServiceContainer } from './services/service-container';
 import { UrlHandler, UrlDetectionResult } from './services/url-handler';
 import { ValidationUtils } from './validation';
 import { YouTubeSettingsTab } from './settings-tab';
-import { YouTubeUrlModal } from './components/features/youtube';
+import { YouTubeUrlModal, BatchVideoModal } from './components/features/youtube';
 import { Notice, Plugin, TFile, WorkspaceLeaf } from 'obsidian';
 
 
@@ -135,6 +135,11 @@ export default class YoutubeClipperPlugin extends Plugin {
             console.log("[YT-CLIPPER] Ribbon icon clicked"); void this.safeShowUrlModal();
         });
 
+        // Add batch processing ribbon icon
+        this.addRibbonIcon('layers', 'Batch Process YouTube Videos', () => {
+            void this.openBatchModal();
+        });
+
         logger.plugin('Ribbon icon set successfully');
 
         this.addCommand({
@@ -155,6 +160,14 @@ export default class YoutubeClipperPlugin extends Plugin {
             name: 'YouTube Clipper: Open URL Modal (from clipboard)',
             callback: async () => {
                 await this.handleClipboardUrl();
+            }
+        });
+
+        this.addCommand({
+            id: `${PLUGIN_PREFIX}-batch-process`,
+            name: 'YouTube Clipper: Batch Process Videos',
+            callback: () => {
+                void this.openBatchModal();
             }
         });
     }
@@ -271,6 +284,26 @@ export default class YoutubeClipperPlugin extends Plugin {
         }, 'YouTube URL Modal').catch((error) => {
             ErrorHandler.handle(error as Error, 'Opening YouTube URL modal');
         });
+    }
+
+    private async openBatchModal(): Promise<void> {
+        if (this.isUnloading || !this.serviceContainer) return;
+
+        const aiService = this.serviceContainer.aiService;
+        const providers = aiService ? aiService.getProviderNames() : [];
+        const modelOptionsMap: Record<string, string[]> = this._settings.modelOptionsCache || {};
+
+        const modal = new BatchVideoModal(this.app, {
+            onProcess: this.processYouTubeVideo.bind(this),
+            onOpenFile: this.openFileByPath.bind(this),
+            providers,
+            defaultProvider: 'Google Gemini',
+            defaultModel: 'gemini-2.5-pro',
+            modelOptions: modelOptionsMap,
+            defaultMaxTokens: this._settings.defaultMaxTokens,
+            defaultTemperature: this._settings.defaultTemperature
+        });
+        modal.open();
     }
 
     private async processYouTubeVideo(

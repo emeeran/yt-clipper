@@ -991,6 +991,9 @@ new Notice('Failed to refresh models. Using cached options.');
         if (this.openButton) {
             this.openButton.style.display = 'none';
         }
+        if (this.progressContainer) {
+            this.progressContainer.style.display = 'none';
+        }
         if (this.headerEl) {
             this.headerEl.textContent = '❌ Processing Failed';
         }

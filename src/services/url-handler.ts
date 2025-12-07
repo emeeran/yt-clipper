@@ -196,7 +196,8 @@ export class UrlHandler {
      */
     public async handleFileCreate(file: TFile): Promise<void> {
         try {
-            if (!(file instanceof TFile)) return;
+            // Use duck typing instead of instanceof for better testability
+            if (!file || !file.path || !file.stat) return;
 
             const content = await this.app.vault.read(file);
 

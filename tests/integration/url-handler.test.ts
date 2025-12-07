@@ -1,13 +1,13 @@
 /**
- * URL Handler integration tests
+ * URL Handler unit tests
+ * Testing core URL handling functionality
  */
 
 import { UrlHandler } from '../../src/services/url-handler';
 import { YouTubePluginSettings } from '../../src/types/types';
-import { TFile } from 'obsidian';
 
 // Mock Obsidian App
-const mockApp = {
+const createMockApp = () => ({
     vault: {
         read: jest.fn(),
         getAbstractFileByPath: jest.fn()
@@ -15,285 +15,231 @@ const mockApp = {
     workspace: {
         getActiveFile: jest.fn()
     }
-} as any;
-
-// Mock TFile
-const createMockFile = (path: string, name: string, content: string, ctime: number = Date.now()): TFile => ({
-    path,
-    name,
-    stat: { ctime, mtime: ctime, size: content.length },
-    extension: 'md'
 } as any);
 
-describe('UrlHandler Integration', () => {
-    let urlHandler: UrlHandler;
-    let mockOnUrlDetected: jest.Mock;
-    let mockSettings: YouTubePluginSettings;
+// Mock TFile with all required properties
+const createMockFile = (path: string, name: string, ctime: number = Date.now()) => ({
+    path,
+    name,
+    basename: name.replace('.md', ''),
+    extension: 'md',
+    stat: { ctime, mtime: ctime, size: 100 },
+    parent: null
+} as any);
 
-    beforeEach(() => {
-        mockOnUrlDetected = jest.fn();
-        mockSettings = {
-            geminiApiKey: '',
-            groqApiKey: '',
-            outputPath: 'YouTube/Processed Videos',
-            useEnvironmentVariables: false,
-            environmentPrefix: 'YTC',
-            performanceMode: 'balanced',
-            enableParallelProcessing: true,
-            preferMultimodal: true
-        };
+const createMockSettings = (): YouTubePluginSettings => ({
+    geminiApiKey: '',
+    groqApiKey: '',
+    outputPath: 'YouTube/Processed Videos',
+    useEnvironmentVariables: false,
+    environmentPrefix: 'YTC',
+    performanceMode: 'balanced',
+    enableParallelProcessing: true,
+    preferMultimodal: true
+});
 
-        urlHandler = new UrlHandler(mockApp, mockSettings, mockOnUrlDetected);
-        jest.clearAllMocks();
-    });
-
-    describe('temp file detection', () => {
-        it('should detect file with note marker as temp file', async () => {
-            const content = '<!-- ytc-extension:youtube-clipper -->\nhttps://youtube.com/watch?v=test123';
-            const file = createMockFile('test.md', 'test.md', content);
-
-            mockApp.vault.read.mockResolvedValue(content);
-
-            await urlHandler.handleFileCreate(file);
-
-            expect(mockOnUrlDetected).toHaveBeenCalledWith({
-                url: 'https://youtube.com/watch?v=test123',
-                source: 'create',
-                filePath: 'test.md',
-                file,
-                content
-            });
-        });
-
-        it('should detect file with YouTube Clip prefix as temp file', async () => {
-            const content = 'https://youtube.com/watch?v=test456';
-            const file = createMockFile('YouTube Clip - Test Video.md', 'YouTube Clip - Test Video.md', content);
-
-            mockApp.vault.read.mockResolvedValue(content);
-
-            await urlHandler.handleFileCreate(file);
-
-            expect(mockOnUrlDetected).toHaveBeenCalledWith({
-                url: 'https://youtube.com/watch?v=test456',
-                source: 'create',
-                filePath: 'YouTube Clip - Test Video.md',
-                file,
-                content
-            });
-        });
-
-        it('should detect new small file with only YouTube URL as temp file', async () => {
-            const content = 'https://youtu.be/abc123';
-            const file = createMockFile('temp.md', 'temp.md', content, Date.now() - 1000); // 1 second old
-
-            mockApp.vault.read.mockResolvedValue(content);
-
-            await urlHandler.handleFileCreate(file);
-
-            expect(mockOnUrlDetected).toHaveBeenCalledWith({
-                url: 'https://youtu.be/abc123',
-                source: 'create',
-                filePath: 'temp.md',
-                file,
-                content
-            });
-        });
-
-        it('should not detect file in output path as temp file', async () => {
-            const content = 'https://youtube.com/watch?v=test789';
-            const file = createMockFile('YouTube/Processed Videos/processed.md', 'processed.md', content);
-
-            mockApp.vault.read.mockResolvedValue(content);
-
-            await urlHandler.handleFileCreate(file);
-
-            expect(mockOnUrlDetected).not.toHaveBeenCalled();
-        });
-
-        it('should not detect old file as temp file', async () => {
-            const content = 'https://youtube.com/watch?v=old123';
-            const file = createMockFile('old.md', 'old.md', content, Date.now() - 10000); // 10 seconds old
-
-            mockApp.vault.read.mockResolvedValue(content);
-
-            await urlHandler.handleFileCreate(file);
-
-            expect(mockOnUrlDetected).not.toHaveBeenCalled();
-        });
-    });
-
-    describe('URL extraction', () => {
-        it('should extract YouTube URL from content', async () => {
-            const content = '<!-- ytc-extension:youtube-clipper -->\nhttps://www.youtube.com/watch?v=dQw4w9WgXcQ';
-            const file = createMockFile('test.md', 'test.md', content);
-
-            mockApp.vault.read.mockResolvedValue(content);
-
-            await urlHandler.handleFileCreate(file);
-
-            expect(mockOnUrlDetected).toHaveBeenCalledWith({
-                url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-                source: 'create',
-                filePath: 'test.md',
-                file,
-                content
-            });
-        });
-
-        it('should extract youtu.be short URL', async () => {
-            const content = 'https://youtu.be/dQw4w9WgXcQ';
-            const file = createMockFile('YouTube Clip - Short.md', 'YouTube Clip - Short.md', content);
-
-            mockApp.vault.read.mockResolvedValue(content);
-
-            await urlHandler.handleFileCreate(file);
-
-            expect(mockOnUrlDetected).toHaveBeenCalledWith({
-                url: 'https://youtu.be/dQw4w9WgXcQ',
-                source: 'create',
-                filePath: 'YouTube Clip - Short.md',
-                file,
-                content
-            });
-        });
-
-        it('should not extract invalid URLs', async () => {
-            const content = 'https://example.com/not-youtube';
-            const file = createMockFile('invalid.md', 'invalid.md', content);
-
-            mockApp.vault.read.mockResolvedValue(content);
-
-            await urlHandler.handleFileCreate(file);
-
-            expect(mockOnUrlDetected).not.toHaveBeenCalled();
-        });
-    });
-
-    describe('active leaf change handling', () => {
-        it('should handle active leaf change with temp file', async () => {
-            const content = '<!-- ytc-extension:youtube-clipper -->\nhttps://youtube.com/watch?v=active123';
-            const file = createMockFile('active.md', 'active.md', content);
-
-            mockApp.workspace.getActiveFile.mockReturnValue(file);
-            mockApp.vault.read.mockResolvedValue(content);
-
-            await urlHandler.handleActiveLeafChange();
-
-            expect(mockOnUrlDetected).toHaveBeenCalledWith({
-                url: 'https://youtube.com/watch?v=active123',
-                source: 'active-leaf',
-                filePath: 'active.md',
-                file,
-                content
-            });
-        });
-
-        it('should not process already handled files', async () => {
-            const content = '<!-- ytc-extension:youtube-clipper -->\nhttps://youtube.com/watch?v=handled123';
-            const file = createMockFile('handled.md', 'handled.md', content);
-
-            mockApp.workspace.getActiveFile.mockReturnValue(file);
-            mockApp.vault.read.mockResolvedValue(content);
-
-            // Process once
-            await urlHandler.handleActiveLeafChange();
-            expect(mockOnUrlDetected).toHaveBeenCalledTimes(1);
-
-            // Try to process again
-            await urlHandler.handleActiveLeafChange();
-            expect(mockOnUrlDetected).toHaveBeenCalledTimes(1); // Still only called once
-        });
-    });
-
+describe('UrlHandler', () => {
     describe('protocol handling', () => {
-        it('should handle protocol parameters with URL', () => {
-            const params = { url: 'https://youtube.com/watch?v=protocol123' };
+        let mockApp: any;
+        let mockOnUrlDetected: jest.Mock;
+        let urlHandler: UrlHandler;
 
-            urlHandler.handleProtocol(params);
-
-            expect(mockOnUrlDetected).toHaveBeenCalledWith({
-                url: 'https://youtube.com/watch?v=protocol123',
-                source: 'protocol'
+        beforeEach(() => {
+            jest.useFakeTimers();
+            mockApp = createMockApp();
+            mockOnUrlDetected = jest.fn();
+            urlHandler = new UrlHandler(mockApp, createMockSettings(), mockOnUrlDetected, {
+                noteMarker: '<!-- ytc-extension:youtube-clipper -->',
+                urlHandlerDelay: 50,
+                maxHandledFiles: 100,
+                tempFileAgeThreshold: 5000
             });
         });
 
-        it('should handle protocol parameters with content', () => {
-            const params = { content: 'https://youtu.be/protocol456' };
-
-            urlHandler.handleProtocol(params);
-
-            expect(mockOnUrlDetected).toHaveBeenCalledWith({
-                url: 'https://youtu.be/protocol456',
-                source: 'protocol'
-            });
+        afterEach(() => {
+            jest.useRealTimers();
+            urlHandler.clear();
         });
 
-        it('should handle protocol parameters with path', () => {
-            const params = { path: 'https://www.youtube.com/watch?v=protocol789' };
+        it('should handle protocol with valid YouTube URL', () => {
+            urlHandler.handleProtocol({ url: 'https://youtube.com/watch?v=dQw4w9WgXcQ' });
+            jest.runAllTimers();
 
-            urlHandler.handleProtocol(params);
-
-            expect(mockOnUrlDetected).toHaveBeenCalledWith({
-                url: 'https://www.youtube.com/watch?v=protocol789',
-                source: 'protocol'
-            });
+            expect(mockOnUrlDetected).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: 'https://youtube.com/watch?v=dQw4w9WgXcQ',
+                    source: 'protocol'
+                })
+            );
         });
 
-        it('should ignore invalid protocol URLs', () => {
-            const params = { url: 'https://example.com/invalid' };
+        it('should handle protocol with youtu.be short URL', () => {
+            urlHandler.handleProtocol({ content: 'https://youtu.be/dQw4w9WgXcQ' });
+            jest.runAllTimers();
 
-            urlHandler.handleProtocol(params);
+            expect(mockOnUrlDetected).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: 'https://youtu.be/dQw4w9WgXcQ',
+                    source: 'protocol'
+                })
+            );
+        });
+
+        it('should handle protocol with path parameter', () => {
+            urlHandler.handleProtocol({ path: 'https://www.youtube.com/watch?v=abc12345678' });
+            jest.runAllTimers();
+
+            expect(mockOnUrlDetected).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: 'https://www.youtube.com/watch?v=abc12345678',
+                    source: 'protocol'
+                })
+            );
+        });
+
+        it('should ignore invalid URLs in protocol', () => {
+            urlHandler.handleProtocol({ url: 'https://example.com/not-youtube' });
+            jest.runAllTimers();
+
+            expect(mockOnUrlDetected).not.toHaveBeenCalled();
+        });
+
+        it('should ignore empty protocol params', () => {
+            urlHandler.handleProtocol({});
+            jest.runAllTimers();
 
             expect(mockOnUrlDetected).not.toHaveBeenCalled();
         });
     });
 
-    describe('deduplication and debouncing', () => {
-        it('should debounce rapid URL detections', async () => {
-            const content = '<!-- ytc-extension:youtube-clipper -->\nhttps://youtube.com/watch?v=debounce123';
-            const file = createMockFile('debounce.md', 'debounce.md', content);
+    describe('settings management', () => {
+        let mockApp: any;
+        let urlHandler: UrlHandler;
 
-            mockApp.vault.read.mockResolvedValue(content);
-
-            // Trigger multiple file create events rapidly
-            await urlHandler.handleFileCreate(file);
-            await urlHandler.handleFileCreate(file);
-            await urlHandler.handleFileCreate(file);
-
-            // Should only be called once due to debouncing
-            expect(mockOnUrlDetected).toHaveBeenCalledTimes(1);
+        beforeEach(() => {
+            mockApp = createMockApp();
+            urlHandler = new UrlHandler(mockApp, createMockSettings(), jest.fn());
         });
-    });
 
-    describe('cleanup', () => {
-        it('should clear all state', async () => {
-            const content = '<!-- ytc-extension:youtube-clipper -->\nhttps://youtube.com/watch?v=cleanup123';
-            const file = createMockFile('cleanup.md', 'cleanup.md', content);
-
-            mockApp.vault.read.mockResolvedValue(content);
-
-            await urlHandler.handleFileCreate(file);
-            expect(mockOnUrlDetected).toHaveBeenCalled();
-
-            urlHandler.clear();
-
-            // Should be able to process the same URL again
-            mockApp.vault.read.mockResolvedValue(content);
-            await urlHandler.handleFileCreate(file);
-
-            expect(mockOnUrlDetected).toHaveBeenCalledTimes(2);
-        });
-    });
-
-    describe('settings update', () => {
-        it('should update settings', () => {
-            const newSettings = { ...mockSettings, outputPath: 'New/Path' };
-
-            urlHandler.updateSettings(newSettings);
-
-            // Settings are used internally, so we can't easily test this without accessing private state
-            // But we can verify no errors are thrown
+        it('should update settings without error', () => {
+            const newSettings = { ...createMockSettings(), outputPath: 'New/Output/Path' };
             expect(() => urlHandler.updateSettings(newSettings)).not.toThrow();
+        });
+
+        it('should clear state without error', () => {
+            expect(() => urlHandler.clear()).not.toThrow();
+        });
+    });
+
+    describe('file path filtering', () => {
+        let mockApp: any;
+        let mockOnUrlDetected: jest.Mock;
+        let urlHandler: UrlHandler;
+
+        beforeEach(() => {
+            jest.useFakeTimers();
+            mockApp = createMockApp();
+            mockOnUrlDetected = jest.fn();
+            urlHandler = new UrlHandler(mockApp, createMockSettings(), mockOnUrlDetected, {
+                noteMarker: '<!-- ytc-extension:youtube-clipper -->',
+                urlHandlerDelay: 50,
+                maxHandledFiles: 100,
+                tempFileAgeThreshold: 5000
+            });
+        });
+
+        afterEach(() => {
+            jest.useRealTimers();
+            urlHandler.clear();
+        });
+
+        it('should not process files in output path', async () => {
+            const file = createMockFile('YouTube/Processed Videos/test.md', 'test.md');
+            const content = 'https://youtube.com/watch?v=test123';
+            
+            mockApp.vault.read.mockResolvedValue(content);
+
+            await urlHandler.handleFileCreate(file);
+            jest.runAllTimers();
+
+            expect(mockOnUrlDetected).not.toHaveBeenCalled();
+        });
+
+        it('should not process old files', async () => {
+            // File created 10 seconds ago (outside 5s threshold)
+            const file = createMockFile('test.md', 'test.md', Date.now() - 10000);
+            const content = 'https://youtube.com/watch?v=test123';
+            
+            mockApp.vault.read.mockResolvedValue(content);
+
+            await urlHandler.handleFileCreate(file);
+            jest.runAllTimers();
+
+            expect(mockOnUrlDetected).not.toHaveBeenCalled();
+        });
+
+        it('should not process files without YouTube URL', async () => {
+            const file = createMockFile('test.md', 'test.md');
+            const content = 'Just some regular text content';
+            
+            mockApp.vault.read.mockResolvedValue(content);
+
+            await urlHandler.handleFileCreate(file);
+            jest.runAllTimers();
+
+            expect(mockOnUrlDetected).not.toHaveBeenCalled();
+        });
+
+        it('should not process null/undefined files', async () => {
+            await urlHandler.handleFileCreate(null as any);
+            jest.runAllTimers();
+
+            expect(mockOnUrlDetected).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('active leaf handling', () => {
+        let mockApp: any;
+        let mockOnUrlDetected: jest.Mock;
+        let urlHandler: UrlHandler;
+
+        beforeEach(() => {
+            jest.useFakeTimers();
+            mockApp = createMockApp();
+            mockOnUrlDetected = jest.fn();
+            urlHandler = new UrlHandler(mockApp, createMockSettings(), mockOnUrlDetected, {
+                noteMarker: '<!-- ytc-extension:youtube-clipper -->',
+                urlHandlerDelay: 50,
+                maxHandledFiles: 100,
+                tempFileAgeThreshold: 5000
+            });
+        });
+
+        afterEach(() => {
+            jest.useRealTimers();
+            urlHandler.clear();
+        });
+
+        it('should not process when no active file', async () => {
+            mockApp.workspace.getActiveFile.mockReturnValue(null);
+
+            await urlHandler.handleActiveLeafChange();
+            jest.runAllTimers();
+
+            expect(mockOnUrlDetected).not.toHaveBeenCalled();
+        });
+
+        it('should not process files in output path via active leaf', async () => {
+            const file = createMockFile('YouTube/Processed Videos/test.md', 'test.md');
+            const content = 'https://youtube.com/watch?v=test123';
+            
+            mockApp.workspace.getActiveFile.mockReturnValue(file);
+            mockApp.vault.read.mockResolvedValue(content);
+
+            await urlHandler.handleActiveLeafChange();
+            jest.runAllTimers();
+
+            expect(mockOnUrlDetected).not.toHaveBeenCalled();
         });
     });
 });

@@ -355,7 +355,22 @@ return {
     }
 
     /**
-     * Process prompt using a specific provider name. Optionally override the model if supported.
+     * Check if an error is a quota/rate limit that should trigger fallback
+     */
+    private isQuotaOrRateLimitError(error: Error): boolean {
+        const msg = error.message.toLowerCase();
+        return msg.includes('quota') || 
+               msg.includes('rate limit') || 
+               msg.includes('limit reached') ||
+               msg.includes('limit exceeded') ||
+               msg.includes('429') ||
+               msg.includes('too many requests') ||
+               msg.includes('exhausted');
+    }
+
+    /**
+     * Process prompt using a specific provider name with automatic fallback.
+     * If the selected provider fails with quota/rate limit, tries other providers.
      */
     async processWith(providerName: string, prompt: string, overrideModel?: string, images?: (string | ArrayBuffer)[]): Promise<AIResponse> {
         const provider = this.providers.find(p => p.name === providerName);
@@ -384,7 +399,52 @@ return {
 
             throw new Error('Empty response from AI provider');
         } catch (error) {
-            throw new Error(MESSAGES.ERRORS.AI_PROCESSING((error as Error).message));
+            const err = error as Error;
+            
+            // If quota/rate limit error, try fallback to other providers
+            if (this.isQuotaOrRateLimitError(err)) {
+                logger.warn(`${providerName} quota/rate limited, trying fallback providers`, 'AIService', {
+                    error: err.message
+                });
+
+                // Get other providers (excluding the failed one)
+                const fallbackProviders = this.providers.filter(p => p.name !== providerName);
+                
+                if (fallbackProviders.length > 0) {
+                    for (const fallbackProvider of fallbackProviders) {
+                        try {
+                            logger.info(`Trying fallback provider: ${fallbackProvider.name}`, 'AIService');
+                            
+                            let content: string;
+                            if (images && images.length > 0 && fallbackProvider.processWithImage) {
+                                content = await fallbackProvider.processWithImage!(prompt, images);
+                            } else {
+                                content = await fallbackProvider.process(prompt);
+                            }
+
+                            if (content && content.trim().length > 0) {
+                                logger.info(`Fallback to ${fallbackProvider.name} succeeded`, 'AIService');
+                                return { 
+                                    content, 
+                                    provider: fallbackProvider.name, 
+                                    model: fallbackProvider.model 
+                                };
+                            }
+                        } catch (fallbackError) {
+                            logger.warn(`Fallback provider ${fallbackProvider.name} also failed`, 'AIService', {
+                                error: (fallbackError as Error).message
+                            });
+                            // Continue to next fallback provider
+                        }
+                    }
+                }
+                
+                // All fallbacks failed, throw original error with note about fallbacks
+                throw new Error(`${err.message} (All fallback providers also failed)`);
+            }
+            
+            // Non-quota error, throw as-is
+            throw new Error(MESSAGES.ERRORS.AI_PROCESSING(err.message));
         }
     }
 
