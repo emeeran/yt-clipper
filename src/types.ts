@@ -15,6 +15,7 @@ export interface YouTubePluginSettings {
     useEnvironmentVariables: boolean;
     environmentPrefix: string;
     modelOptionsCache?: Record<string, string[]>;
+    modelCacheTimestamps?: Record<string, number>; // Cache timestamps for each provider
     customPrompts?: Record<OutputFormat, string>;
     performanceMode: PerformanceMode;
     customTimeouts?: CustomTimeoutSettings;

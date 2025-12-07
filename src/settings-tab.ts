@@ -24,6 +24,8 @@ export class YouTubeSettingsTab extends PluginSettingTab {
     private settings: YouTubePluginSettings;
     private validationErrors: string[] = [];
     private secureConfig: SecureConfigService;
+    private drawerStates: Map<string, boolean> = new Map();
+    private readonly DRAWER_STATES_KEY = 'ytc-settings-drawer-states';
 
     constructor(
         app: App,
@@ -32,6 +34,7 @@ export class YouTubeSettingsTab extends PluginSettingTab {
         super(app, options.plugin);
         this.settings = { ...options.plugin.settings };
         this.secureConfig = new SecureConfigService(this.settings);
+        this.loadDrawerStates();
     }
 
     display(): void {
@@ -336,8 +339,11 @@ export class YouTubeSettingsTab extends PluginSettingTab {
     }
 
     private createDrawer(title: string, icon: string, isOpenByDefault = false): { drawer: HTMLElement; content: HTMLElement } {
-        const drawer = this.containerEl.createDiv({ cls: `${CSS_PREFIX}-drawer${isOpenByDefault ? ' is-open' : ''}` });
-        
+        const drawerKey = title; // Use title as unique identifier
+        const savedState = this.drawerStates.get(drawerKey) ?? isOpenByDefault;
+
+        const drawer = this.containerEl.createDiv({ cls: `${CSS_PREFIX}-drawer${savedState ? ' is-open' : ''}` });
+
         const header = drawer.createDiv({ cls: `${CSS_PREFIX}-drawer-header` });
         header.createSpan({ cls: `${CSS_PREFIX}-drawer-icon`, text: icon });
         header.createEl('h3', { cls: `${CSS_PREFIX}-drawer-title`, text: title });
@@ -347,11 +353,15 @@ export class YouTubeSettingsTab extends PluginSettingTab {
         const content = contentWrapper.createDiv({ cls: `${CSS_PREFIX}-drawer-inner` });
 
         header.addEventListener('click', () => {
-            drawer.classList.toggle('is-open');
+            const isOpen = drawer.classList.toggle('is-open');
+            this.drawerStates.set(drawerKey, isOpen);
+            this.saveDrawerStates();
         });
 
         return { drawer, content };
     }
+
+    private headerBadge?: HTMLDivElement;
 
     private createHeader(): void {
         const { containerEl } = this;
@@ -362,10 +372,17 @@ export class YouTubeSettingsTab extends PluginSettingTab {
         title.createSpan({ text: 'YT Clipper' });
 
         const isReady = this.validateConfiguration();
-        const badge = header.createDiv({
+        this.headerBadge = header.createDiv({
             cls: `${CSS_PREFIX}-badge ${isReady ? `${CSS_PREFIX}-badge-ready` : `${CSS_PREFIX}-badge-setup`}`
         });
-        badge.textContent = isReady ? '✓ Ready' : '⚠ Setup Required';
+        this.headerBadge.textContent = isReady ? '✓ Ready' : '⚠ Setup Required';
+    }
+
+    private updateHeaderBadge(isReady: boolean): void {
+        if (this.headerBadge) {
+            this.headerBadge.className = `${CSS_PREFIX}-badge ${isReady ? `${CSS_PREFIX}-badge-ready` : `${CSS_PREFIX}-badge-setup`}`;
+            this.headerBadge.textContent = isReady ? '✓ Ready' : '⚠ Setup Required';
+        }
     }
 
     private createAPISection(): void {
@@ -669,13 +686,23 @@ export class YouTubeSettingsTab extends PluginSettingTab {
 
     private async validateAndSaveSettings(): Promise<void> {
         const validation = ValidationUtils.validateSettings(this.settings);
+        const hadErrors = this.validationErrors.length > 0;
+        const hasErrors = validation.errors.length > 0;
+
         this.validationErrors = validation.errors;
 
         if (validation.isValid) {
             await this.options.onSettingsChange(this.settings);
+            this.updateHeaderBadge(true);
+        } else {
+            this.updateHeaderBadge(false);
         }
 
-        this.display();
+        // Only refresh display if validation state changed (errors appeared/disappeared)
+        // This prevents drawers from closing on every setting change
+        if (hadErrors !== hasErrors) {
+            this.display();
+        }
     }
 
     getSettings(): YouTubePluginSettings {
@@ -685,5 +712,33 @@ export class YouTubeSettingsTab extends PluginSettingTab {
     updateSettings(newSettings: YouTubePluginSettings): void {
         this.settings = { ...newSettings };
         this.display();
+    }
+
+    private loadDrawerStates(): void {
+        try {
+            const stored = localStorage.getItem(this.DRAWER_STATES_KEY);
+            if (stored) {
+                const states = JSON.parse(stored);
+                Object.entries(states).forEach(([key, value]) => {
+                    this.drawerStates.set(key, Boolean(value));
+                });
+            }
+        } catch (error) {
+            // Silently fail and use defaults
+            console.debug('Could not load drawer states:', error);
+        }
+    }
+
+    private saveDrawerStates(): void {
+        try {
+            const states: Record<string, boolean> = {};
+            this.drawerStates.forEach((value, key) => {
+                states[key] = value;
+            });
+            localStorage.setItem(this.DRAWER_STATES_KEY, JSON.stringify(states));
+        } catch (error) {
+            // Silently fail
+            console.debug('Could not save drawer states:', error);
+        }
     }
 }

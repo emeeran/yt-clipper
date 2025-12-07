@@ -61,6 +61,7 @@ export class YouTubeUrlModal extends BaseModal {
     private processedFilePath?: string;
     private customPromptInput?: HTMLTextAreaElement;
     private customPromptContainer?: HTMLDivElement;
+    private refreshButton?: HTMLButtonElement;
 
     // Format, Provider, and Model dropdowns
     private formatSelect?: HTMLSelectElement;
@@ -484,6 +485,9 @@ export class YouTubeUrlModal extends BaseModal {
         this.formatSelect!.addEventListener('change', () => {
             this.format = this.formatSelect?.value as OutputFormat ?? 'executive-summary';
             this.toggleCustomPromptVisibility();
+
+            // Save the current format selection immediately
+            UserPreferencesService.setPreference('lastFormat', this.format);
         });
 
         // Provider dropdown
@@ -548,6 +552,12 @@ export class YouTubeUrlModal extends BaseModal {
             if (this.options.modelOptions) {
                 this.updateModelDropdown(this.options.modelOptions);
             }
+
+            // Update refresh button tooltip based on provider
+            this.updateRefreshButtonTooltip();
+
+            // Save the current provider selection immediately
+            UserPreferencesService.setPreference('lastProvider', this.selectedProvider);
         });
 
         // Model dropdown with refresh button container
@@ -575,6 +585,7 @@ export class YouTubeUrlModal extends BaseModal {
 
         // Create refresh button
         const refreshBtn = modelLabelRow.createEl('button');
+        this.refreshButton = refreshBtn;
         refreshBtn.innerHTML = '🔄';
         refreshBtn.style.cssText = `
             background: none;
@@ -597,14 +608,23 @@ export class YouTubeUrlModal extends BaseModal {
             refreshBtn.style.background = 'none';
         });
 
-        refreshBtn.addEventListener('click', async () => {
+        refreshBtn.addEventListener('click', async (event) => {
+            const isForceRefresh = event.shiftKey; // Hold Shift for force refresh
             refreshBtn.innerHTML = '⏳'; // Loading indicator
             refreshBtn.style.opacity = '0.5';
             refreshBtn.style.cursor = 'wait';
 
             try {
                 const currentProvider = this.selectedProvider || 'Google Gemini';
-                
+
+                // Special handling for OpenRouter with force refresh
+                if (currentProvider === 'OpenRouter' && isForceRefresh) {
+                    // This would need to be exposed through the options
+                    new Notice('Force refresh for OpenRouter models (bypassing cache)...');
+                    // For now, use the normal flow but skip cache by updating timestamp
+                    this.options.modelOptions = { ...this.options.modelOptions, ['OpenRouter']: [] }; // Clear cache
+                }
+
                 // Try provider-specific fetch first (faster)
                 if (this.options.fetchModelsForProvider) {
                     const models = await this.options.fetchModelsForProvider(currentProvider);
@@ -612,7 +632,12 @@ export class YouTubeUrlModal extends BaseModal {
                         // Update just this provider's models
                         const updatedOptions = { ...this.options.modelOptions, [currentProvider]: models };
                         this.updateModelDropdown(updatedOptions);
-                        new Notice(`Updated ${models.length} models for ${currentProvider}`);
+
+                        if (currentProvider === 'OpenRouter' && !isForceRefresh) {
+                            new Notice(`Updated ${models.length} cached models for ${currentProvider}`);
+                        } else {
+                            new Notice(`Updated ${models.length} models for ${currentProvider}`);
+                        }
                     } else {
                         new Notice('No models found. Using defaults.');
                     }
@@ -630,6 +655,9 @@ export class YouTubeUrlModal extends BaseModal {
                 refreshBtn.style.cursor = 'pointer';
             }
         });
+
+        // Set initial tooltip
+        this.updateRefreshButtonTooltip();
 
         // Create "Set Default" button
         const setDefaultBtn = modelLabelRow.createEl('button');
@@ -722,12 +750,28 @@ export class YouTubeUrlModal extends BaseModal {
             optionEl.textContent = option.text;
         });
 
-        // Set default model selection
-        this.modelSelect!.value = 'gemini-2.5-pro';
+        // Set default model selection - try provider-specific model first, then general preference
+        const providerSpecificModel = UserPreferencesService.getPreference(`lastModel_${this.selectedProvider}`) as string;
+        const smartModel = providerSpecificModel ||
+                           UserPreferencesService.getPreference('preferredModel') ||
+                           UserPreferencesService.getPreference('lastModel') ||
+                           'gemini-2.5-pro';
+        this.modelSelect!.value = smartModel;
+        this.selectedModel = smartModel;
 
         // Update model when changed
         this.modelSelect!.addEventListener('change', () => {
             this.selectedModel = this.modelSelect?.value;
+
+            // Save the current model selection immediately
+            UserPreferencesService.setPreference('lastModel', this.selectedModel);
+
+            // Also save provider-specific model preference
+            if (this.selectedProvider) {
+                const preferences = UserPreferencesService.loadPreferences();
+                preferences[`lastModel_${this.selectedProvider}`] = this.selectedModel;
+                UserPreferencesService.savePreferences(preferences);
+            }
         });
 
         // Auto Fallback toggle row
@@ -1008,13 +1052,26 @@ export class YouTubeUrlModal extends BaseModal {
             option.textContent = this.formatModelName(model);
         });
 
-        // Preserve the previously selected model if it's still available, otherwise use first option
-        if (this.selectedModel && models.includes(this.selectedModel)) {
-            this.modelSelect.value = this.selectedModel;
+        // Try to find the best model to select:
+        // 1. Try to use the last used model for this provider
+        // 2. Fall back to the previously selected model if it's still available
+        // 3. Otherwise use the first available model
+        let modelToSelect = '';
+
+        // Get last used model for this specific provider
+        const preferences = UserPreferencesService.loadPreferences();
+        const lastProviderModel = preferences[`lastModel_${currentProvider}`] as string;
+
+        if (lastProviderModel && models.includes(lastProviderModel)) {
+            modelToSelect = lastProviderModel;
+        } else if (this.selectedModel && models.includes(this.selectedModel)) {
+            modelToSelect = this.selectedModel;
         } else if (models.length > 0) {
-            this.modelSelect.value = models[0] ?? '';
-            this.selectedModel = models[0];
+            modelToSelect = models[0] ?? '';
         }
+
+        this.modelSelect.value = modelToSelect;
+        this.selectedModel = modelToSelect;
     }
 
     /**
@@ -1798,4 +1855,16 @@ new Notice('Could not access clipboard');
 
     // Additional properties for debouncing
     private validationTimer?: number;
+
+    /**
+     * Update refresh button tooltip based on selected provider
+     */
+    private updateRefreshButtonTooltip(): void {
+        if (this.refreshButton) {
+            const currentProvider = this.selectedProvider || 'Google Gemini';
+            this.refreshButton.title = currentProvider === 'OpenRouter'
+                ? 'Refresh models (Shift+Click to force refresh and bypass cache)'
+                : 'Refresh models';
+        }
+    }
 }

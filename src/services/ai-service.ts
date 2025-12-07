@@ -11,6 +11,8 @@ import { performanceTracker } from './performance-tracker';
  * AI service that manages multiple providers with parallel processing support
  */
 
+// Cache duration: 24 hours in milliseconds
+const CACHE_DURATION = 24 * 60 * 60 * 1000;
 
 export class AIService implements IAIService {
     private providers: AIProvider[] = [];
@@ -103,7 +105,7 @@ export class AIService implements IAIService {
      * Fetch latest models for a single provider (best-effort scraping).
      * Special handling for Ollama to query the actual running instance.
      */
-    async fetchLatestModelsForProvider(providerName: string): Promise<string[]> {
+    async fetchLatestModelsForProvider(providerName: string, bypassCache = false): Promise<string[]> {
         return await performanceTracker.measureOperation('ai-service', `fetch-models-${providerName}`, async () => {
             // Special handling for Ollama to query the actual running instance
             if (providerName === 'Ollama') {
@@ -112,7 +114,7 @@ export class AIService implements IAIService {
 
             // Special handling for OpenRouter - use their API
             if (providerName === 'OpenRouter') {
-                return this.fetchOpenRouterModels();
+                return this.fetchOpenRouterModels(bypassCache);
             }
 
             // Special handling for Hugging Face - use inference API models
@@ -121,13 +123,51 @@ export class AIService implements IAIService {
             }
 
             // For Gemini and Groq, return static options (their APIs don't have a model list endpoint)
-            return PROVIDER_MODEL_OPTIONS[providerName] 
-                ? (PROVIDER_MODEL_OPTIONS[providerName] as any[]).map(m => typeof m === 'string' ? m : m.name) 
+            return PROVIDER_MODEL_OPTIONS[providerName]
+                ? (PROVIDER_MODEL_OPTIONS[providerName] as any[]).map(m => typeof m === 'string' ? m : m.name)
                 : [];
         }, {
             provider: providerName,
             operation: 'fetchLatestModelsForProvider'
         });
+    }
+
+    /**
+     * Force refresh OpenRouter models, bypassing cache
+     */
+    async forceRefreshOpenRouterModels(): Promise<string[]> {
+        try {
+            logger.debug('Force fetching fresh OpenRouter models from API', 'AIService');
+            const response = await this.httpClient.get('https://openrouter.ai/api/v1/models', {
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data?.data && Array.isArray(data.data)) {
+                    // Sort by context length and get top models
+                    const models = data.data
+                        .sort((a: any, b: any) => (b.context_length || 0) - (a.context_length || 0))
+                        .slice(0, 50) // Top 50 models
+                        .map((m: any) => m.id)
+                        .filter((id: string) => id);
+
+                    logger.debug(`Force fetched ${models.length} fresh models from OpenRouter`, 'AIService');
+                    return models;
+                }
+            }
+        } catch (error) {
+            logger.warn('OpenRouter API error during force refresh', 'AIService');
+        }
+
+        // Fallback to cached models or static list
+        const cachedModels = this.settings.modelOptionsCache?.['OpenRouter'];
+        if (cachedModels && cachedModels.length > 0) {
+            logger.debug(`Using cache of ${cachedModels.length} OpenRouter models as fallback`, 'AIService');
+            return cachedModels;
+        }
+
+        return (PROVIDER_MODEL_OPTIONS['OpenRouter'] as any[]).map(m => typeof m === 'string' ? m : m.name);
     }
 
     /**
@@ -157,10 +197,24 @@ export class AIService implements IAIService {
     }
 
     /**
-     * Fetch models from OpenRouter API
+     * Fetch models from OpenRouter API with caching
      */
-    private async fetchOpenRouterModels(): Promise<string[]> {
+    private async fetchOpenRouterModels(bypassCache = false): Promise<string[]> {
+        // Check if we have cached models that are still valid
+        const cacheKey = 'OpenRouter';
+        const cachedModels = this.settings.modelOptionsCache?.[cacheKey];
+        const cachedTimestamp = this.settings.modelCacheTimestamps?.[cacheKey];
+        const now = Date.now();
+
+        // If we have valid cached models and we're not bypassing cache, return them
+        if (!bypassCache && cachedModels && cachedTimestamp && (now - cachedTimestamp) < CACHE_DURATION) {
+            logger.debug(`Using ${cachedModels.length} cached OpenRouter models (${Math.round((now - cachedTimestamp) / 1000 / 60)} minutes old)`, 'AIService');
+            return cachedModels;
+        }
+
+        // Otherwise, fetch fresh models from API
         try {
+            logger.debug('Fetching fresh OpenRouter models from API', 'AIService');
             const response = await this.httpClient.get('https://openrouter.ai/api/v1/models', {
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -168,19 +222,27 @@ export class AIService implements IAIService {
             if (response.ok) {
                 const data = await response.json();
                 if (data?.data && Array.isArray(data.data)) {
-                    // Sort by popularity and get model IDs
+                    // Sort by context length and get top models
                     const models = data.data
                         .sort((a: any, b: any) => (b.context_length || 0) - (a.context_length || 0))
                         .slice(0, 50) // Top 50 models
                         .map((m: any) => m.id)
                         .filter((id: string) => id);
-                    logger.debug(`Fetched ${models.length} models from OpenRouter`, 'AIService');
+
+                    logger.debug(`Fetched ${models.length} fresh models from OpenRouter`, 'AIService');
                     return models;
                 }
             }
         } catch (error) {
-            logger.warn('OpenRouter API error, using static list', 'AIService');
+            logger.warn('OpenRouter API error, using cached list or fallback', 'AIService');
         }
+
+        // Fallback: return cached models if available (even if expired), or static list
+        if (cachedModels && cachedModels.length > 0) {
+            logger.debug(`Using expired cache of ${cachedModels.length} OpenRouter models as fallback`, 'AIService');
+            return cachedModels;
+        }
+
         return (PROVIDER_MODEL_OPTIONS['OpenRouter'] as any[]).map(m => typeof m === 'string' ? m : m.name);
     }
 

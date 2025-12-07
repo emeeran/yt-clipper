@@ -16,6 +16,9 @@ export interface UserPreferences {
     lastParallelProcessing?: boolean;
     lastMultimodal?: boolean;
 
+    // Provider-specific model preferences
+    [key: `lastModel_${string}`]?: string;
+
     // User preferences
     preferredFormat?: OutputFormat;
     preferredProvider?: string;

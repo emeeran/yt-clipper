@@ -265,6 +265,14 @@ export default class YoutubeClipperPlugin extends Plugin {
                     try {
                         const map = await (this.serviceContainer!.aiService as any).fetchLatestModels();
                         this._settings.modelOptionsCache = map;
+
+                        // Update timestamps for all providers
+                        const now = Date.now();
+                        this._settings.modelCacheTimestamps = {};
+                        Object.keys(map).forEach(provider => {
+                            this._settings.modelCacheTimestamps![provider] = now;
+                        });
+
                         await this.saveSettings();
                         return map;
                     } catch (error) {
@@ -275,10 +283,18 @@ export default class YoutubeClipperPlugin extends Plugin {
                     try {
                         const models = await (this.serviceContainer!.aiService as any).fetchLatestModelsForProvider(provider);
                         if (models && models.length > 0) {
+                            // Update model cache
                             this._settings.modelOptionsCache = {
                                 ...this._settings.modelOptionsCache,
                                 [provider]: models
                             };
+
+                            // Update timestamp for provider (especially for OpenRouter)
+                            this._settings.modelCacheTimestamps = {
+                                ...this._settings.modelCacheTimestamps,
+                                [provider]: Date.now()
+                            };
+
                             await this.saveSettings();
                         }
                         return models;
