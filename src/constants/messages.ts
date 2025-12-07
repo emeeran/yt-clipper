@@ -38,7 +38,7 @@ export const MESSAGES = {
         YOUTUBE_PROCESSED: 'YouTube Video Processed',
         CONFIRM_OPEN: (filename: string) => `Successfully processed YouTube video and saved as "${filename}". Would you like to open the note now?`,
         CLOSE_CONFIRMATION: 'Close without opening the note?',
-        PROCESS_VIDEO: 'Process YouTube Video',
+        PROCESS_VIDEO: 'YouTube Clipper',
         YES_OPEN: 'Yes, open note',
         NO_THANKS: 'No, thanks',
         CANCEL: 'Cancel',

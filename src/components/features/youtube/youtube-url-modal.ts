@@ -539,124 +539,48 @@ new Notice('Failed to refresh models. Using cached options.');
         themeContainer.style.cssText = `
             display: flex;
             justify-content: flex-end;
-            margin: 8px 0 16px 0;
-            padding: 0 4px;
+            margin: 4px 0 8px 0;
         `;
 
-        // Theme toggle wrapper
-        const toggleWrapper = themeContainer.createDiv();
-        toggleWrapper.style.cssText = `
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: var(--background-secondary);
-            padding: 6px 12px;
-            border-radius: 20px;
-            border: 1px solid var(--background-modifier-border);
-            transition: all 0.3s ease;
-        `;
-
-        // Add hover effect
-        toggleWrapper.addEventListener('mouseenter', () => {
-            toggleWrapper.style.borderColor = 'var(--interactive-accent)';
-            toggleWrapper.style.boxShadow = '0 2px 8px rgba(99, 102, 241, 0.2)';
-        });
-        toggleWrapper.addEventListener('mouseleave', () => {
-            toggleWrapper.style.borderColor = 'var(--background-modifier-border)';
-            toggleWrapper.style.boxShadow = 'none';
-        });
-
-        // Sun icon for light mode
-        const sunIcon = toggleWrapper.createSpan();
-        sunIcon.innerHTML = '☀️';
-        sunIcon.style.cssText = `
-            font-size: 1.1rem;
-            transition: all 0.3s ease;
-            opacity: ${this.isLightTheme ? '1' : '0.5'};
-        `;
-
-        // Theme toggle switch
-        const themeSwitch = toggleWrapper.createEl('input');
-        themeSwitch.type = 'checkbox';
-        themeSwitch.checked = this.isLightTheme;
-        themeSwitch.style.cssText = `
-            opacity: 0;
-            width: 0;
-            height: 0;
-            position: absolute;
-        `;
-
-        // Toggle slider
-        const slider = toggleWrapper.createDiv();
-        slider.style.cssText = `
-            position: relative;
-            width: 44px;
-            height: 24px;
-            background: ${this.isLightTheme ? 'var(--interactive-accent)' : 'var(--text-muted)'};
-            border-radius: 24px;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        // Minimal theme toggle - just a clickable icon
+        const toggleBtn = themeContainer.createDiv();
+        toggleBtn.style.cssText = `
             cursor: pointer;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+            font-size: 1rem;
+            opacity: 0.6;
+            transition: opacity 0.2s ease;
+            padding: 4px;
         `;
+        toggleBtn.innerHTML = this.isLightTheme ? '☀️' : '🌙';
+        toggleBtn.title = this.isLightTheme ? 'Switch to dark mode' : 'Switch to light mode';
 
-        // Toggle knob
-        const knob = slider.createDiv();
-        knob.style.cssText = `
-            position: absolute;
-            height: 18px;
-            width: 18px;
-            left: ${this.isLightTheme ? '24px' : '3px'};
-            bottom: 3px;
-            background: white;
-            border-radius: 50%;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        `;
-
-        // Moon icon for dark mode
-        const moonIcon = toggleWrapper.createSpan();
-        moonIcon.innerHTML = '🌙';
-        moonIcon.style.cssText = `
-            font-size: 1.1rem;
-            transition: all 0.3s ease;
-            opacity: ${this.isLightTheme ? '0.5' : '1'};
-        `;
+        toggleBtn.addEventListener('mouseenter', () => {
+            toggleBtn.style.opacity = '1';
+        });
+        toggleBtn.addEventListener('mouseleave', () => {
+            toggleBtn.style.opacity = '0.6';
+        });
 
         // Theme toggle functionality
         const updateTheme = (isLight: boolean) => {
             this.isLightTheme = isLight;
-            themeSwitch.checked = isLight;
-
-            // Update slider and knob
-            slider.style.background = isLight ? 'var(--interactive-accent)' : 'var(--text-muted)';
-            knob.style.left = isLight ? '24px' : '3px';
-
-            // Update icons
-            sunIcon.style.opacity = isLight ? '1' : '0.5';
-            moonIcon.style.opacity = isLight ? '0.5' : '1';
-
-            // Apply theme to modal
+            toggleBtn.innerHTML = isLight ? '☀️' : '🌙';
+            toggleBtn.title = isLight ? 'Switch to dark mode' : 'Switch to light mode';
             this.applyTheme(isLight);
-
-            // Store preference
             localStorage.setItem('ytc-theme-mode', isLight ? 'light' : 'dark');
         };
 
-        // Event listeners
-        slider.addEventListener('click', () => {
+        // Click to toggle
+        toggleBtn.addEventListener('click', () => {
             updateTheme(!this.isLightTheme);
         });
 
-        themeSwitch.addEventListener('change', () => {
-            updateTheme(themeSwitch.checked);
-        });
-
-        // Store elements for potential cleanup
+        // Store for cleanup
         this.themeElements = {
-            slider,
-            knob,
-            sunIcon,
-            moonIcon,
+            slider: toggleBtn,
+            knob: toggleBtn,
+            sunIcon: toggleBtn,
+            moonIcon: toggleBtn,
             updateTheme
         };
     }
