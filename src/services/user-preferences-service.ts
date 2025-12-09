@@ -15,6 +15,7 @@ export interface UserPreferences {
     lastPerformanceMode?: PerformanceMode;
     lastParallelProcessing?: boolean;
     lastMultimodal?: boolean;
+    lastAutoFallback?: boolean;
 
     // Provider-specific model preferences
     [key: `lastModel_${string}`]?: string;
@@ -23,6 +24,7 @@ export interface UserPreferences {
     preferredFormat?: OutputFormat;
     preferredProvider?: string;
     preferredModel?: string;
+    preferredAutoFallback?: boolean;
     autoSelectProvider?: boolean;
     showPreview?: boolean;
     enableKeyboardShortcuts?: boolean;
@@ -116,6 +118,7 @@ export class UserPreferencesService {
         performanceMode?: PerformanceMode;
         parallelProcessing?: boolean;
         multimodal?: boolean;
+        autoFallback?: boolean;
     }): void {
         const preferences = this.loadPreferences();
 
@@ -135,6 +138,7 @@ export class UserPreferencesService {
         if (settings.performanceMode) preferences.lastPerformanceMode = settings.performanceMode;
         if (settings.parallelProcessing !== undefined) preferences.lastParallelProcessing = settings.parallelProcessing;
         if (settings.multimodal !== undefined) preferences.lastMultimodal = settings.multimodal;
+        if (settings.autoFallback !== undefined) preferences.lastAutoFallback = settings.autoFallback;
 
         preferences.lastUsed = new Date().toISOString();
         preferences.totalProcessed = (preferences.totalProcessed || 0) + 1;
@@ -214,14 +218,31 @@ export class UserPreferencesService {
         mode: PerformanceMode;
         parallel: boolean;
         multimodal: boolean;
+        autoFallback: boolean;
     } {
         const preferences = this.loadPreferences();
 
         return {
             mode: preferences.lastPerformanceMode || 'balanced',
             parallel: preferences.lastParallelProcessing || false,
-            multimodal: preferences.lastMultimodal || true
+            multimodal: preferences.lastMultimodal || true,
+            autoFallback: preferences.lastAutoFallback !== undefined ? preferences.lastAutoFallback : true
         };
+    }
+
+    /**
+     * Get smart default auto-fallback setting
+     */
+    static getSmartDefaultAutoFallback(): boolean {
+        const preferences = this.loadPreferences();
+
+        // Return user's preferred auto-fallback if set
+        if (preferences.preferredAutoFallback !== undefined) {
+            return preferences.preferredAutoFallback;
+        }
+
+        // Return last used auto-fallback setting
+        return preferences.lastAutoFallback !== undefined ? preferences.lastAutoFallback : true;
     }
 
     /**

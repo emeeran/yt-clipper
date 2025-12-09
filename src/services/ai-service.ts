@@ -109,7 +109,7 @@ export class AIService implements IAIService {
         return await performanceTracker.measureOperation('ai-service', `fetch-models-${providerName}`, async () => {
             // Special handling for Ollama to query the actual running instance
             if (providerName === 'Ollama') {
-                return this.fetchOllamaModels();
+                return this.fetchOllamaModels(bypassCache);
             }
 
             // Special handling for OpenRouter - use their API
@@ -119,7 +119,7 @@ export class AIService implements IAIService {
 
             // Special handling for Hugging Face - use inference API models
             if (providerName === 'Hugging Face') {
-                return this.fetchHuggingFaceModels();
+                return this.fetchHuggingFaceModels(bypassCache);
             }
 
             // For Gemini and Groq, return static options (their APIs don't have a model list endpoint)
@@ -171,10 +171,25 @@ export class AIService implements IAIService {
     }
 
     /**
-     * Fetch models from local Ollama instance
+     * Fetch models from local Ollama instance with caching
      */
-    private async fetchOllamaModels(): Promise<string[]> {
+    private async fetchOllamaModels(bypassCache = false): Promise<string[]> {
+        // Check if we have cached models that are still valid (shorter cache for local instance)
+        const cacheKey = 'Ollama';
+        const cachedModels = this.settings.modelOptionsCache?.[cacheKey];
+        const cachedTimestamp = this.settings.modelCacheTimestamps?.[cacheKey];
+        const now = Date.now();
+        const ollamaCacheDuration = 30 * 60 * 1000; // 30 minutes for local instance
+
+        // If we have valid cached models and we're not bypassing cache, return them
+        if (!bypassCache && cachedModels && cachedTimestamp && (now - cachedTimestamp) < ollamaCacheDuration) {
+            logger.debug(`Using ${cachedModels.length} cached Ollama models (${Math.round((now - cachedTimestamp) / 1000 / 60)} minutes old)`, 'AIService');
+            return cachedModels;
+        }
+
+        // Otherwise, fetch fresh models from local Ollama instance
         try {
+            logger.debug('Fetching fresh Ollama models from local instance', 'AIService');
             const defaultOllamaEndpoint = 'http://localhost:11434';
             const response = await this.httpClient.get(`${defaultOllamaEndpoint}/api/tags`, {
                 headers: { 'Content-Type': 'application/json' }
@@ -186,13 +201,20 @@ export class AIService implements IAIService {
                     const modelNames = data.models
                         .map((model: any) => model.name || model.id || '')
                         .filter((name: string) => name !== '');
-                    logger.debug(`Fetched ${modelNames.length} models from Ollama`, 'AIService');
+                    logger.debug(`Fetched ${modelNames.length} fresh models from Ollama`, 'AIService');
                     return modelNames;
                 }
             }
         } catch (error) {
-            logger.warn('Ollama not accessible, using static list', 'AIService');
+            logger.warn('Ollama not accessible, using cached list or fallback', 'AIService');
         }
+
+        // Fallback: return cached models if available (even if expired), or static list
+        if (cachedModels && cachedModels.length > 0) {
+            logger.debug(`Using expired cache of ${cachedModels.length} Ollama models as fallback`, 'AIService');
+            return cachedModels;
+        }
+
         return (PROVIDER_MODEL_OPTIONS['Ollama'] as any[]).map(m => typeof m === 'string' ? m : m.name);
     }
 
@@ -222,14 +244,49 @@ export class AIService implements IAIService {
             if (response.ok) {
                 const data = await response.json();
                 if (data?.data && Array.isArray(data.data)) {
-                    // Sort by context length and get top models
+                    // Prioritize multimodal models, then sort by context length
                     const models = data.data
-                        .sort((a: any, b: any) => (b.context_length || 0) - (a.context_length || 0))
+                        // Filter for models that support vision/multimodal (check for vision or image capabilities)
+                        .filter((m: any) =>
+                            m.id.includes('vision') ||
+                            m.id.includes('claude') ||
+                            m.id.includes('gpt-4') ||
+                            m.id.includes('gemini') ||
+                            m.id.includes('llava') ||
+                            m.id.includes('pixtral') ||
+                            m.capabilities?.vision ||
+                            m.capabilities?.image
+                        )
+                        .sort((a: any, b: any) => {
+                            // First prioritize multimodal models
+                            const aIsMultimodal = a.id.includes('vision') ||
+                                              a.id.includes('claude') ||
+                                              a.id.includes('gpt-4') ||
+                                              a.id.includes('gemini') ||
+                                              a.id.includes('llava') ||
+                                              a.id.includes('pixtral') ||
+                                              a.capabilities?.vision ||
+                                              a.capabilities?.image;
+                            const bIsMultimodal = b.id.includes('vision') ||
+                                              b.id.includes('claude') ||
+                                              b.id.includes('gpt-4') ||
+                                              b.id.includes('gemini') ||
+                                              b.id.includes('llava') ||
+                                              b.id.includes('pixtral') ||
+                                              b.capabilities?.vision ||
+                                              b.capabilities?.image;
+
+                            if (aIsMultimodal && !bIsMultimodal) return -1;
+                            if (!aIsMultimodal && bIsMultimodal) return 1;
+
+                            // Then sort by context length
+                            return (b.context_length || 0) - (a.context_length || 0);
+                        })
                         .slice(0, 50) // Top 50 models
                         .map((m: any) => m.id)
                         .filter((id: string) => id);
 
-                    logger.debug(`Fetched ${models.length} fresh models from OpenRouter`, 'AIService');
+                    logger.debug(`Fetched ${models.length} fresh models from OpenRouter (prioritizing multimodal)`, 'AIService');
                     return models;
                 }
             }
@@ -247,33 +304,86 @@ export class AIService implements IAIService {
     }
 
     /**
-     * Fetch popular text generation models from Hugging Face
+     * Fetch popular text generation models from Hugging Face with caching
      * Only returns models that work with the Inference API
      */
-    private async fetchHuggingFaceModels(): Promise<string[]> {
+    private async fetchHuggingFaceModels(bypassCache = false): Promise<string[]> {
+        // Check if we have cached models that are still valid
+        const cacheKey = 'Hugging Face';
+        const cachedModels = this.settings.modelOptionsCache?.[cacheKey];
+        const cachedTimestamp = this.settings.modelCacheTimestamps?.[cacheKey];
+        const now = Date.now();
+
+        // If we have valid cached models and we're not bypassing cache, return them
+        if (!bypassCache && cachedModels && cachedTimestamp && (now - cachedTimestamp) < CACHE_DURATION) {
+            logger.debug(`Using ${cachedModels.length} cached HuggingFace models (${Math.round((now - cachedTimestamp) / 1000 / 60)} minutes old)`, 'AIService');
+            return cachedModels;
+        }
+
+        // Otherwise, fetch fresh models from API
         try {
-            // Fetch text-generation models that are inference-enabled, sorted by downloads
+            logger.debug('Fetching fresh HuggingFace models from API', 'AIService');
             const response = await this.httpClient.get(
-                'https://huggingface.co/api/models?pipeline_tag=text-generation&inference=warm&sort=downloads&limit=20',
+                'https://huggingface.co/api/models?pipeline_tag=text-generation&inference=warm&sort=downloads&limit=50',
                 { headers: { 'Content-Type': 'application/json' } }
             );
 
             if (response.ok) {
                 const data = await response.json();
                 if (Array.isArray(data)) {
-                    const models = data
-                        .filter((m: any) => m.id && !m.private && m.id.includes('/'))
-                        .map((m: any) => m.id)
-                        .slice(0, 15);
-                    logger.debug(`Fetched ${models.length} HuggingFace models`, 'AIService');
-                    if (models.length > 0) return models;
+                    // Filter and prioritize multimodal models
+                    const multimodalModels = data
+                        .filter((m: any) => {
+                            if (!m.id || m.private || !m.id.includes('/')) return false;
+                            // Check for vision/multimodal capabilities
+                            const modelId = m.id.toLowerCase();
+                            const tags = (m.tags || []).map((t: string) => t.toLowerCase());
+                            return modelId.includes('vision') ||
+                                   modelId.includes('vl') ||
+                                   modelId.includes('multimodal') ||
+                                   tags.includes('image-text-to-text') ||
+                                   tags.includes('vision') ||
+                                   modelId.includes('qwen2-vl') ||
+                                   modelId.includes('llava') ||
+                                   modelId.includes('phi3-vision');
+                        })
+                        .slice(0, 10)
+                        .map((m: any) => m.id);
+
+                    // Also include top text generation models
+                    const textModels = data
+                        .filter((m: any) => m.id && !m.private && m.id.includes('/') && !multimodalModels.includes(m.id))
+                        .slice(0, 20)
+                        .map((m: any) => m.id);
+
+                    // Combine multimodal and text models, prioritizing multimodal
+                    const allModels = [...multimodalModels, ...textModels].slice(0, 30);
+
+                    logger.debug(`Fetched ${allModels.length} fresh HuggingFace models (${multimodalModels.length} multimodal)`, 'AIService');
+                    if (allModels.length > 0) return allModels;
                 }
             }
         } catch (error) {
-            logger.warn('Hugging Face API error, using static list', 'AIService');
+            logger.warn('HuggingFace API error, using cached list or fallback', 'AIService');
         }
-        // Return curated list of models known to work with inference API
+
+        // Fallback: return cached models if available (even if expired), or static list
+        if (cachedModels && cachedModels.length > 0) {
+            logger.debug(`Using expired cache of ${cachedModels.length} HuggingFace models as fallback`, 'AIService');
+            return cachedModels;
+        }
+
+        // Return curated list of models known to work with inference API (prioritizing multimodal)
         return [
+            // Multimodal models first
+            'Qwen/Qwen2-VL-7B-Instruct',
+            'Qwen/Qwen2-VL-2B-Instruct',
+            'meta-llama/Llama-3.2-11B-Vision-Instruct',
+            'meta-llama/Llama-3.2-90B-Vision-Instruct',
+            'microsoft/Phi-3.5-vision-instruct',
+            'llava-hf/llava-1.5-7b',
+            'llava-hf/llava-1.5-13b',
+            // Text models
             'Qwen/Qwen3-8B',
             'Qwen/Qwen2.5-7B-Instruct',
             'Qwen/Qwen3-4B-Instruct-2507',
@@ -319,41 +429,40 @@ export class AIService implements IAIService {
                     model: provider.model
                 });
 
-                let content: string;
-                // Use multimodal processing if images are provided and supported
-                if (images && images.length > 0 && provider.processWithImage) {
-                    content = await RetryService.withRetry(
-                        () => provider.processWithImage!(prompt, images),
-                        `${provider.name}-process-multimodal`,
-                        2, // 2 attempts per provider
-                        2000 // 2 second base delay
-                    );
-                } else {
-                    content = await RetryService.withRetry(
-                        () => provider.process(prompt),
-                        `${provider.name}-process`,
-                        2, // 2 attempts per provider
-                        2000 // 2 second base delay
-                    );
-                }
+                // Try primary model first
+                try {
+                    const content = await this.processWithProvider(provider, prompt, images);
 
-                if (content && content.trim().length > 0) {
-                    logger.info(`Successfully processed with ${provider.name}`, 'AIService', {
-                        model: provider.model,
-                        contentLength: content.length
+                    if (content && content.trim().length > 0) {
+                        logger.info(`Successfully processed with ${provider.name}`, 'AIService', {
+                            model: provider.model,
+                            contentLength: content.length
+                        });
+
+                        return {
+                            content,
+                            provider: provider.name,
+                            model: provider.model
+                        };
+                    }
+                } catch (modelError) {
+                    const err = modelError as Error;
+                    logger.warn(`Primary model ${provider.model} failed for ${provider.name}`, 'AIService', {
+                        error: err.message
                     });
 
-                    return {
-                        content,
-                        provider: provider.name,
-                        model: provider.model
-                    };
-                } else {
-                    throw new Error('Empty response from AI provider');
+                    // Try fallback models if available
+                    const fallbackContent = await this.tryFallbackModels(provider, prompt, images);
+                    if (fallbackContent) {
+                        return fallbackContent;
+                    }
+
+                    // If fallback models also failed, continue to next provider
+                    throw err;
                 }
             } catch (error) {
                 lastError = error as Error;
-                logger.warn(`${provider.name} failed`, 'AIService', {
+                logger.warn(`${provider.name} failed with all models`, 'AIService', {
                     error: error instanceof Error ? error.message : String(error),
                     model: provider.model
                 });
@@ -374,36 +483,117 @@ export class AIService implements IAIService {
     }
 
     /**
-     * Process prompt with parallel provider racing for maximum speed
+     * Process with a specific provider and current model
      */
-    private async processParallel(prompt: string, images?: (string | ArrayBuffer)[]): Promise<AIResponse> {
-        
-const providerPromises = this.providers.map(async (provider) => {
+    private async processWithProvider(provider: AIProvider, prompt: string, images?: (string | ArrayBuffer)[]): Promise<string> {
+        if (images && images.length > 0 && provider.processWithImage) {
+            return await RetryService.withRetry(
+                () => provider.processWithImage!(prompt, images),
+                `${provider.name}-process-multimodal`,
+                2, // 2 attempts per model
+                2000 // 2 second base delay
+            );
+        } else {
+            return await RetryService.withRetry(
+                () => provider.process(prompt),
+                `${provider.name}-process`,
+                2, // 2 attempts per model
+                2000 // 2 second base delay
+            );
+        }
+    }
+
+    /**
+     * Try fallback models for a provider when primary model fails
+     */
+    private async tryFallbackModels(provider: AIProvider, prompt: string, images?: (string | ArrayBuffer)[]): Promise<AIResponse | null> {
+        const availableModels = this.getProviderModels(provider.name);
+        const fallbackModels = availableModels.filter(m => m !== provider.model);
+
+        if (fallbackModels.length === 0) {
+            logger.info(`No fallback models available for ${provider.name}`, 'AIService');
+            return null;
+        }
+
+        logger.info(`Trying ${fallbackModels.length} fallback models for ${provider.name}`, 'AIService');
+
+        // Try up to 3 fallback models
+        const modelsToTry = fallbackModels.slice(0, 3);
+
+        for (const fallbackModel of modelsToTry) {
             try {
-                let content: string;
-                // Use multimodal processing if images are provided and supported
-                if (images && images.length > 0 && provider.processWithImage) {
-                    // For parallel mode, we'll call processWithImage directly with timeout
-                    content = await provider.processWithImage!(prompt, images);
-                } else {
-                    // For text-only processing, use the provider's timeout method
-                    content = await provider.process(prompt);
+                logger.info(`Trying fallback model ${fallbackModel} for ${provider.name}`, 'AIService');
+
+                // Temporarily set the fallback model if supported
+                const originalModel = provider.model;
+                if (typeof (provider as any).setModel === 'function') {
+                    (provider as any).setModel(fallbackModel);
                 }
 
+                const content = await this.processWithProvider(provider, prompt, images);
+
                 if (content && content.trim().length > 0) {
+                    logger.info(`Fallback to ${fallbackModel} succeeded for ${provider.name}`, 'AIService', {
+                        contentLength: content.length
+                    });
+
                     return {
                         content,
                         provider: provider.name,
-                        model: provider.model,
-                        success: true,
-                        responseTime: Date.now()
+                        model: fallbackModel
                     };
-                } else {
-                    throw new Error('Empty response from AI provider');
+                }
+            } catch (fallbackError) {
+                logger.warn(`Fallback model ${fallbackModel} failed for ${provider.name}`, 'AIService', {
+                    error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+                });
+            } finally {
+                // Restore original model
+                if (typeof (provider as any).setModel === 'function') {
+                    (provider as any).setModel(provider.model);
+                }
+            }
+        }
+
+        logger.warn(`All fallback models failed for ${provider.name}`, 'AIService');
+        return null;
+    }
+
+    /**
+     * Process prompt with parallel provider racing for maximum speed
+     */
+    private async processParallel(prompt: string, images?: (string | ArrayBuffer)[]): Promise<AIResponse> {
+        const providerPromises = this.providers.map(async (provider) => {
+            try {
+                // Try primary model first
+                try {
+                    const content = await this.processWithProvider(provider, prompt, images);
+
+                    if (content && content.trim().length > 0) {
+                        return {
+                            content,
+                            provider: provider.name,
+                            model: provider.model,
+                            success: true,
+                            responseTime: Date.now()
+                        };
+                    }
+                } catch (primaryError) {
+                    // If primary model fails, try fallback models in parallel
+                    const fallbackResponse = await this.tryFallbackModels(provider, prompt, images);
+                    if (fallbackResponse) {
+                        return {
+                            content: fallbackResponse.content,
+                            provider: fallbackResponse.provider,
+                            model: fallbackResponse.model,
+                            success: true,
+                            responseTime: Date.now()
+                        };
+                    }
+                    throw primaryError;
                 }
             } catch (error) {
-                
-return {
+                return {
                     error: (error as Error).message,
                     provider: provider.name,
                     model: provider.model,
@@ -455,7 +645,7 @@ return {
 
     /**
      * Process prompt using a specific provider name with optional automatic fallback.
-     * If enableFallback is true and the selected provider fails with quota/rate limit, tries other providers.
+     * If enableFallback is true and the selected provider fails, tries other models first, then other providers.
      */
     async processWith(providerName: string, prompt: string, overrideModel?: string, images?: (string | ArrayBuffer)[], enableFallback: boolean = true): Promise<AIResponse> {
         const provider = this.providers.find(p => p.name === providerName);
@@ -465,6 +655,7 @@ return {
 
         try {
             // If provider supports setModel, apply override
+            const originalModel = provider.model;
             if (overrideModel && typeof (provider as any).setModel === 'function') {
                 (provider as any).setModel(overrideModel);
             }
@@ -485,40 +676,54 @@ return {
             throw new Error('Empty response from AI provider');
         } catch (error) {
             const err = error as Error;
-            
+
             // If fallback is disabled, throw immediately
             if (!enableFallback) {
                 throw new Error(MESSAGES.ERRORS.AI_PROCESSING(err.message));
             }
-            
-            // If quota/rate limit error, try fallback to other providers
-            if (this.isQuotaOrRateLimitError(err)) {
-                logger.warn(`${providerName} quota/rate limited, trying fallback providers`, 'AIService', {
+
+            // First try fallback models within the same provider
+            if (overrideModel || !this.isQuotaOrRateLimitError(err)) {
+                logger.info(`Primary model failed for ${providerName}, trying fallback models`, 'AIService', {
+                    error: err.message
+                });
+
+                const fallbackResponse = await this.tryFallbackModels(provider, prompt, images);
+                if (fallbackResponse) {
+                    return fallbackResponse;
+                }
+            }
+
+            // If model fallback failed or not applicable, try other providers
+            if (this.isQuotaOrRateLimitError(err) || (!overrideModel && err)) {
+                logger.warn(`${providerName} failed, trying fallback providers`, 'AIService', {
                     error: err.message
                 });
 
                 // Get other providers (excluding the failed one)
                 const fallbackProviders = this.providers.filter(p => p.name !== providerName);
-                
+
                 if (fallbackProviders.length > 0) {
                     for (const fallbackProvider of fallbackProviders) {
                         try {
                             logger.info(`Trying fallback provider: ${fallbackProvider.name}`, 'AIService');
-                            
-                            let content: string;
-                            if (images && images.length > 0 && fallbackProvider.processWithImage) {
-                                content = await fallbackProvider.processWithImage!(prompt, images);
-                            } else {
-                                content = await fallbackProvider.process(prompt);
-                            }
+
+                            // First try primary model of fallback provider
+                            const content = await this.processWithProvider(fallbackProvider, prompt, images);
 
                             if (content && content.trim().length > 0) {
                                 logger.info(`Fallback to ${fallbackProvider.name} succeeded`, 'AIService');
-                                return { 
-                                    content, 
-                                    provider: fallbackProvider.name, 
-                                    model: fallbackProvider.model 
+                                return {
+                                    content,
+                                    provider: fallbackProvider.name,
+                                    model: fallbackProvider.model
                                 };
+                            }
+
+                            // If primary model fails, try fallback models for this provider
+                            const modelFallbackResponse = await this.tryFallbackModels(fallbackProvider, prompt, images);
+                            if (modelFallbackResponse) {
+                                return modelFallbackResponse;
                             }
                         } catch (fallbackError) {
                             logger.warn(`Fallback provider ${fallbackProvider.name} also failed`, 'AIService', {
@@ -528,13 +733,10 @@ return {
                         }
                     }
                 }
-                
-                // All fallbacks failed, throw original error with note about fallbacks
-                throw new Error(`${err.message} (All fallback providers also failed)`);
             }
-            
-            // Non-quota error, throw as-is
-            throw new Error(MESSAGES.ERRORS.AI_PROCESSING(err.message));
+
+            // All fallbacks failed, throw original error with note about fallbacks
+            throw new Error(`${err.message} (All fallback providers and models also failed)`);
         }
     }
 

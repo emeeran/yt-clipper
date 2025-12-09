@@ -6,8 +6,7 @@
   "permissions": ["storage", "activeTab", "scripting", "clipboardWrite"],
   "host_permissions": ["*://*.youtube.com/*"],
   "action": {
-    "default_title": "YouTube Clipper",
-    "default_popup": null
+    "default_title": "YouTube Clipper"
   },
   "background": {
     "service_worker": "background.js"

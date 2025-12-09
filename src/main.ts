@@ -279,9 +279,9 @@ export default class YoutubeClipperPlugin extends Plugin {
                         return modelOptionsMap;
                     }
                 },
-                fetchModelsForProvider: async (provider: string) => {
+                fetchModelsForProvider: async (provider: string, forceRefresh = false) => {
                     try {
-                        const models = await (this.serviceContainer!.aiService as any).fetchLatestModelsForProvider(provider);
+                        const models = await (this.serviceContainer!.aiService as any).fetchLatestModelsForProvider(provider, forceRefresh);
                         if (models && models.length > 0) {
                             // Update model cache
                             this._settings.modelOptionsCache = {

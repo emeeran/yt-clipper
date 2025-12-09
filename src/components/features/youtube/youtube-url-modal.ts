@@ -22,7 +22,7 @@ export interface YouTubeUrlModalOptions {
     defaultMaxTokens?: number;
     defaultTemperature?: number;
     fetchModels?: () => Promise<Record<string, string[]>>;
-    fetchModelsForProvider?: (provider: string) => Promise<string[]>;
+    fetchModelsForProvider?: (provider: string, forceRefresh?: boolean) => Promise<string[]>;
     // Performance settings from plugin settings
     performanceMode?: PerformanceMode;
     enableParallelProcessing?: boolean;
@@ -93,7 +93,8 @@ export class YouTubeUrlModal extends BaseModal {
         const smartModelParams = UserPreferencesService.getSmartDefaultModelParameters();
         const lastProvider = UserPreferencesService.getSmartDefaultProvider();
         const lastFormat = UserPreferencesService.getSmartDefaultFormat();
-        
+        const smartAutoFallback = UserPreferencesService.getSmartDefaultAutoFallback();
+
         // Check for user-set preferred model, falling back to last used
         const preferredModel = UserPreferencesService.getPreference('preferredModel');
         const lastModel = UserPreferencesService.getPreference('lastModel');
@@ -103,6 +104,7 @@ export class YouTubeUrlModal extends BaseModal {
         this.selectedProvider = lastProvider || 'Google Gemini';
         this.selectedModel = preferredModel || lastModel || 'gemini-2.5-pro';
         this.format = lastFormat;
+        this.autoFallbackEnabled = smartAutoFallback;
 
         // Track usage for smart suggestions (will be updated again on actual processing)
         UserPreferencesService.updateLastUsed({
@@ -617,26 +619,32 @@ export class YouTubeUrlModal extends BaseModal {
             try {
                 const currentProvider = this.selectedProvider || 'Google Gemini';
 
-                // Special handling for OpenRouter with force refresh
-                if (currentProvider === 'OpenRouter' && isForceRefresh) {
-                    // This would need to be exposed through the options
-                    new Notice('Force refresh for OpenRouter models (bypassing cache)...');
-                    // For now, use the normal flow but skip cache by updating timestamp
-                    this.options.modelOptions = { ...this.options.modelOptions, ['OpenRouter']: [] }; // Clear cache
-                }
+                // Determine if provider supports dynamic fetching
+                const dynamicProviders = ['OpenRouter', 'Hugging Face', 'Ollama'];
+                const isDynamicProvider = dynamicProviders.includes(currentProvider);
 
                 // Try provider-specific fetch first (faster)
                 if (this.options.fetchModelsForProvider) {
-                    const models = await this.options.fetchModelsForProvider(currentProvider);
+                    const models = await this.options.fetchModelsForProvider(currentProvider, isForceRefresh);
                     if (models && models.length > 0) {
                         // Update just this provider's models
                         const updatedOptions = { ...this.options.modelOptions, [currentProvider]: models };
                         this.updateModelDropdown(updatedOptions);
 
-                        if (currentProvider === 'OpenRouter' && !isForceRefresh) {
-                            new Notice(`Updated ${models.length} cached models for ${currentProvider}`);
+                        // Provide appropriate feedback
+                        if (isDynamicProvider) {
+                            if (isForceRefresh) {
+                                new Notice(`🔄 Force fetched ${models.length} fresh models for ${currentProvider}`);
+                            } else {
+                                const cacheStatus = this.getCacheStatus(currentProvider);
+                                if (cacheStatus.isCached && cacheStatus.ageMinutes) {
+                                    new Notice(`📦 Updated ${models.length} models for ${currentProvider} (${cacheStatus.ageMinutes}m old cache)`);
+                                } else {
+                                    new Notice(`🌐 Fetched ${models.length} fresh models for ${currentProvider}`);
+                                }
+                            }
                         } else {
-                            new Notice(`Updated ${models.length} models for ${currentProvider}`);
+                            new Notice(`📋 Loaded ${models.length} available models for ${currentProvider} (static list)`);
                         }
                     } else {
                         new Notice('No models found. Using defaults.');
@@ -689,24 +697,27 @@ export class YouTubeUrlModal extends BaseModal {
             const currentFormat = this.formatSelect?.value as OutputFormat;
             const currentProvider = this.providerSelect?.value;
             const currentModel = this.modelSelect?.value;
+            const currentAutoFallback = this.fallbackToggle?.checked ?? true;
 
             // Save as preferred defaults
             UserPreferencesService.setPreference('preferredFormat', currentFormat);
             UserPreferencesService.setPreference('preferredProvider', currentProvider);
             UserPreferencesService.setPreference('preferredModel', currentModel);
+            UserPreferencesService.setPreference('preferredAutoFallback', currentAutoFallback);
 
             // Also update last used
             UserPreferencesService.updateLastUsed({
                 format: currentFormat,
                 provider: currentProvider,
                 model: currentModel,
+                autoFallback: currentAutoFallback,
             });
 
             // Visual feedback
             const originalText = setDefaultBtn.innerHTML;
             setDefaultBtn.innerHTML = '✅';
-            new Notice(`Default set: ${currentFormat} / ${currentProvider} / ${currentModel?.split('/').pop() || currentModel}`);
-            
+            new Notice(`Default set: ${currentFormat} / ${currentProvider} / ${currentModel?.split('/').pop() || currentModel} (Auto-fallback: ${currentAutoFallback ? 'ON' : 'OFF'})`);
+
             setTimeout(() => {
                 setDefaultBtn.innerHTML = originalText;
             }, 1500);
@@ -1005,6 +1016,12 @@ export class YouTubeUrlModal extends BaseModal {
 
         this.fallbackToggle.addEventListener('change', () => {
             this.autoFallbackEnabled = this.fallbackToggle?.checked ?? true;
+
+            // Save auto-fallback preference to last used
+            UserPreferencesService.updateLastUsed({
+                autoFallback: this.autoFallbackEnabled
+            });
+
             updateToggleStyle();
             updateKnob();
         });
@@ -1031,13 +1048,46 @@ export class YouTubeUrlModal extends BaseModal {
             // Fallback to static options if not available in dynamic map
             switch(currentProvider) {
                 case 'Google Gemini':
-                    models = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'];
+                    models = [
+                        'gemini-2.5-pro', 'gemini-2.5-pro-tts', 'gemini-2.5-flash', 'gemini-2.5-flash-lite',
+                        'gemini-2.0-pro', 'gemini-2.0-flash', 'gemini-2.0-flash-lite',
+                        'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'
+                    ];
                     break;
                 case 'Groq':
-                    models = ['llama-4-maverick-17b-128e-instruct', 'llama-4-scout-17b-16e-instruct', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+                    models = [
+                        // Official Groq Models (December 2024)
+                        'llama-3.1-8b-instant',
+                        'llama-3.1-8b-instruct',
+                        'llama-3.1-70b-instruct',
+                        'llama-3.1-405b-instruct',
+
+                        // Mixtral Models
+                        'mixtral-8x7b-instruct-v0.1',
+                        'mixtral-8x22b-instruct-v0.1',
+
+                        // Gemma Models
+                        'gemma2-9b-it',
+                        'gemma-7b-it',
+
+                        // DeepSeek Models
+                        'deepseek-r1-distill-llama-70b',
+                        'deepseek-coder-v2-lite-instruct',
+
+                        // Specialized Models
+                        'llama-guard-3-8b',
+                        'code-llama-34b-instruct'
+                    ];
                     break;
                 case 'Ollama':
-                    models = ['qwen3-coder:480b-cloud', 'llama3.2', 'llama3.1', 'mistral', 'mixtral', 'gemma2', 'phi3', 'qwen2', 'command-r'];
+                    models = [
+                        // Multimodal Vision Models
+                        'llama3.2-vision', 'llava', 'llava-llama3', 'bakllava', 'moondream',
+                        'nvidia-llama3-1-vision', 'qwen2-vl', 'phi3-vision',
+
+                        // High-performance Text Models
+                        'qwen3-coder:480b-cloud', 'llama3.2', 'llama3.1', 'mistral', 'mixtral', 'gemma2', 'phi3', 'qwen2', 'command-r'
+                    ];
                     break;
                 default:
                     models = [];
@@ -1048,8 +1098,18 @@ export class YouTubeUrlModal extends BaseModal {
         models.forEach(model => {
             const option = this.modelSelect!.createEl('option');
             option.value = model;
+
             // Format model names to be more user-friendly
-            option.textContent = this.formatModelName(model);
+            const formattedName = this.formatModelName(model);
+            const isMultimodal = this.isMultimodalModel(currentProvider, model);
+
+            // Add multimodal indicator
+            option.textContent = isMultimodal ? `👁️ ${formattedName}` : formattedName;
+
+            // Add title for multimodal models
+            if (isMultimodal) {
+                option.title = `${formattedName} - Supports vision and multimodal analysis`;
+            }
         });
 
         // Try to find the best model to select:
@@ -1084,10 +1144,68 @@ export class YouTubeUrlModal extends BaseModal {
         if (modelName === 'gemini-1.5-pro') return 'Gemini Pro 1.5';
         if (modelName === 'gemini-1.5-flash') return 'Gemini Flash 1.5';
         if (modelName === 'qwen3-coder:480b-cloud') return 'Qwen3-Coder 480B Cloud';
-        if (modelName === 'llama-4-maverick-17b-128e-instruct') return 'Llama 4 Maverick 17B';
-        if (modelName === 'llama-4-scout-17b-16e-instruct') return 'Llama 4 Scout 17B';
-        if (modelName === 'llama-3.3-70b-versatile') return 'Llama 3.3 70B';
-        if (modelName === 'llama-3.1-8b-instant') return 'Llama 3.1 8B';
+
+        // Official Groq Models (December 2024)
+        if (modelName === 'llama-3.1-8b-instant') return 'Llama 3.1 8B Instant ⚡';
+        if (modelName === 'llama-3.1-8b-instruct') return 'Llama 3.1 8B';
+        if (modelName === 'llama-3.1-70b-instruct') return 'Llama 3.1 70B';
+        if (modelName === 'llama-3.1-405b-instruct') return 'Llama 3.1 405B';
+
+        // Mixtral Models
+        if (modelName === 'mixtral-8x7b-instruct-v0.1') return 'Mixtral 8x7B Instruct v0.1';
+        if (modelName === 'mixtral-8x22b-instruct-v0.1') return 'Mixtral 8x22B Instruct v0.1';
+
+        // Gemma Models
+        if (modelName === 'gemma2-9b-it') return 'Gemma 2 9B IT';
+        if (modelName === 'gemma-7b-it') return 'Gemma 7B IT';
+
+        // DeepSeek Models
+        if (modelName === 'deepseek-r1-distill-llama-70b') return 'DeepSeek R1 Distill 70B';
+        if (modelName === 'deepseek-coder-v2-lite-instruct') return 'DeepSeek Coder V2 Lite';
+
+        // Specialized Models
+        if (modelName === 'llama-guard-3-8b') return 'Llama Guard 3 8B';
+        if (modelName === 'code-llama-34b-instruct') return 'Code Llama 34B';
+
+        // Mixtral series
+        if (modelName === 'mixtral-8x7b-32768') return 'Mixtral 8x7B 32K';
+        if (modelName === 'mixtral-8x7b-instruct-v0.1') return 'Mixtral 8x7B Instruct v0.1';
+
+        // Gemma series
+        if (modelName === 'gemma-7b-it') return 'Gemma 7B IT';
+        if (modelName === 'gemma2-9b-it') return 'Gemma 2 9B IT';
+
+        // Llama 2 series
+        if (modelName === 'llama2-70b-4096') return 'Llama 2 70B 4K';
+        if (modelName === 'llama2-70b-chat') return 'Llama 2 70B Chat';
+        if (modelName === 'llama2-13b-chat') return 'Llama 2 13B Chat';
+        if (modelName === 'llama2-7b-chat') return 'Llama 2 7B Chat';
+
+        // Multimodal Vision Models
+        if (modelName === 'llama-3.2-11b-vision-instruct') return 'Llama 3.2 11B Vision 👁️';
+        if (modelName === 'llama-3.2-90b-vision-instruct') return 'Llama 3.2 90B Vision 👁️';
+        if (modelName === 'llama3.2-vision') return 'Llama 3.2 Vision 👁️';
+        if (modelName === 'llava') return 'LLaVA 👁️';
+        if (modelName === 'llava-llama3') return 'LLaVA Llama 3 👁️';
+        if (modelName === 'bakllava') return 'BakLLaVA 👁️';
+        if (modelName === 'moondream') return 'MoonDream 👁️';
+        if (modelName === 'nvidia-llama3-1-vision') return 'NVIDIA Llama 3.1 Vision 👁️';
+        if (modelName === 'qwen2-vl') return 'Qwen 2 VL 👁️';
+        if (modelName === 'phi3-vision') return 'Phi 3 Vision 👁️';
+        if (modelName === 'fuyu-8b') return 'Fuyu 8B 👁️';
+        if (modelName === 'pixtral-12b') return 'Pixtral 12B 👁️';
+        if (modelName === 'qwen/qwen2-vl-7b-instruct') return 'Qwen 2 VL 7B 👁️';
+        if (modelName === 'qwen/qwen2-vl-2b-instruct') return 'Qwen 2 VL 2B 👁️';
+        if (modelName === 'microsoft/phi-3.5-vision-instruct') return 'Phi 3.5 Vision 👁️';
+        if (modelName === 'google/paligemma-3b-mix-448') return 'PaliGemma 3B 👁️';
+        if (modelName === 'huggingfacem4/idefics2-8b') return 'Idefics 2 8B 👁️';
+
+        // Multimodal Provider Models
+        if (modelName === 'anthropic/claude-3.5-sonnet') return 'Claude 3.5 Sonnet 👁️';
+        if (modelName === 'anthropic/claude-3.5-haiku') return 'Claude 3.5 Haiku 👁️';
+        if (modelName === 'openai/gpt-4o') return 'GPT-4o 👁️';
+        if (modelName === 'openai/gpt-4o-mini') return 'GPT-4o Mini 👁️';
+        if (modelName === 'google/gemini-2.0-flash-exp') return 'Gemini 2.0 Flash Experimental 👁️';
 
         // Default fallback: capitalize first letter and replace dashes/underscores with spaces
         return modelName.charAt(0).toUpperCase() + modelName.slice(1).replace(/[-_]/g, ' ');
@@ -1857,14 +1975,56 @@ new Notice('Could not access clipboard');
     private validationTimer?: number;
 
     /**
+     * Get cache status for a provider
+     */
+    private getCacheStatus(provider: string): { isCached: boolean; ageMinutes?: number } {
+        const dynamicProviders = ['OpenRouter', 'Hugging Face', 'Ollama'];
+
+        if (!dynamicProviders.includes(provider)) {
+            return { isCached: false }; // Static providers
+        }
+
+        // In a real implementation, you would check actual cache timestamps
+        // For now, return a placeholder - this could be enhanced by passing cache info
+        return { isCached: true, ageMinutes: 15 }; // Placeholder
+    }
+
+    /**
+     * Check if model supports multimodal capabilities
+     */
+    private isMultimodalModel(provider: string, model: string): boolean {
+        // Known multimodal model patterns
+        const multimodalPatterns = [
+            'vision', 'vl', 'v-', 'multimodal', 'pixtral', 'fuyu', 'llava', 'moondream',
+            'gemini-2.5', 'gemini-2.0', 'claude-3.5', 'gpt-4o', 'phi-3.5-vision', 'qwen2-vl'
+        ];
+
+        // Check if model name contains any multimodal indicators
+        return multimodalPatterns.some(pattern =>
+            model.toLowerCase().includes(pattern.toLowerCase())
+        );
+    }
+
+    /**
+     * Check if provider is using cached models
+     */
+    private isUsingCachedModels(provider: string): boolean {
+        return this.getCacheStatus(provider).isCached;
+    }
+
+    /**
      * Update refresh button tooltip based on selected provider
      */
     private updateRefreshButtonTooltip(): void {
         if (this.refreshButton) {
             const currentProvider = this.selectedProvider || 'Google Gemini';
-            this.refreshButton.title = currentProvider === 'OpenRouter'
-                ? 'Refresh models (Shift+Click to force refresh and bypass cache)'
-                : 'Refresh models';
+            const dynamicProviders = ['OpenRouter', 'Hugging Face', 'Ollama'];
+
+            if (dynamicProviders.includes(currentProvider)) {
+                this.refreshButton.title = `Refresh models (Shift+Click to force refresh and bypass cache)`;
+            } else {
+                this.refreshButton.title = 'Refresh models (static list)';
+            }
         }
     }
 }

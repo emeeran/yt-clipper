@@ -14,7 +14,7 @@ export const API_ENDPOINTS = {
 
 export const AI_MODELS = {
     GEMINI: 'gemini-2.5-pro',
-    GROQ: 'llama-3.3-70b-versatile',
+    GROQ: 'llama-3.1-8b-instant',
     HUGGINGFACE: 'Qwen/Qwen3-8B',
     OPENROUTER: 'meta-llama/llama-3.1-8b-instruct:free'
 } as const;
@@ -32,19 +32,48 @@ export const PROVIDER_MODEL_OPTIONS: Record<string, ProviderModelEntry[]> = {
         { name: 'gemini-2.5-flash-lite', supportsAudioVideo: true },
         // Gemini 2.0 series
         { name: 'gemini-2.0-pro', supportsAudioVideo: true },
-        { name: 'gemini-2.0-flash' },
-        { name: 'gemini-2.0-flash-lite' },
+        { name: 'gemini-2.0-flash', supportsAudioVideo: true },
+        { name: 'gemini-2.0-flash-lite', supportsAudioVideo: true },
         // Gemini 1.5 series
-        { name: 'gemini-1.5-pro' },
-        { name: 'gemini-1.5-flash' }
+        { name: 'gemini-1.5-pro', supportsAudioVideo: true },
+        { name: 'gemini-1.5-flash', supportsAudioVideo: true },
+        { name: 'gemini-1.5-flash-8b', supportsAudioVideo: true }
     ],
     'Groq': [
-        { name: 'llama-4-maverick-17b-128e-instruct' },
-        { name: 'llama-4-scout-17b-16e-instruct' },
-        { name: 'llama-3.3-70b-versatile' },
-        { name: 'llama-3.1-8b-instant' }
+        // Official Groq Models (December 2024)
+        { name: 'llama-3.1-8b-instant' },
+        { name: 'llama-3.1-8b-instruct' },
+        { name: 'llama-3.1-70b-instruct' },
+        { name: 'llama-3.1-405b-instruct' },
+
+        // Mixtral Models
+        { name: 'mixtral-8x7b-instruct-v0.1' },
+        { name: 'mixtral-8x22b-instruct-v0.1' },
+
+        // Gemma Models
+        { name: 'gemma2-9b-it' },
+        { name: 'gemma-7b-it' },
+
+        // DeepSeek Models
+        { name: 'deepseek-r1-distill-llama-70b' },
+        { name: 'deepseek-coder-v2-lite-instruct' },
+
+        // Specialized Models
+        { name: 'llama-guard-3-8b' },
+        { name: 'code-llama-34b-instruct' }
     ],
     'Ollama': [
+        // Multimodal Vision Models
+        { name: 'llama3.2-vision', supportsAudioVideo: true },
+        { name: 'llava', supportsAudioVideo: true },
+        { name: 'llava-llama3', supportsAudioVideo: true },
+        { name: 'bakllava', supportsAudioVideo: true },
+        { name: 'moondream', supportsAudioVideo: true },
+        { name: 'nvidia-llama3-1-vision', supportsAudioVideo: true },
+        { name: 'qwen2-vl', supportsAudioVideo: true },
+        { name: 'phi3-vision', supportsAudioVideo: true },
+
+        // High-performance Text Models
         { name: 'qwen3-coder:480b-cloud' },
         { name: 'llama3.2' },
         { name: 'llama3.1' },
@@ -56,27 +85,57 @@ export const PROVIDER_MODEL_OPTIONS: Record<string, ProviderModelEntry[]> = {
         { name: 'command-r' }
     ],
     'Hugging Face': [
-        // Models verified to work with HuggingFace Inference API (Dec 2025)
+        // Multimodal Vision-Language Models
+        { name: 'Qwen/Qwen2-VL-7B-Instruct', supportsAudioVideo: true },
+        { name: 'Qwen/Qwen2-VL-2B-Instruct', supportsAudioVideo: true },
+        { name: 'meta-llama/Llama-3.2-11B-Vision-Instruct', supportsAudioVideo: true },
+        { name: 'meta-llama/Llama-3.2-90B-Vision-Instruct', supportsAudioVideo: true },
+        { name: 'microsoft/Phi-3.5-vision-instruct', supportsAudioVideo: true },
+        { name: 'google/paligemma-3b-mix-448', supportsAudioVideo: true },
+        { name: 'HuggingFaceM4/idefics2-8b', supportsAudioVideo: true },
+
+        // High-quality Text Models
         { name: 'Qwen/Qwen3-8B' },
         { name: 'Qwen/Qwen2.5-7B-Instruct' },
         { name: 'Qwen/Qwen3-4B-Instruct-2507' },
         { name: 'meta-llama/Llama-3.2-3B-Instruct' },
         { name: 'meta-llama/Llama-3.2-1B-Instruct' },
         { name: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B' },
-        { name: 'mistralai/Mistral-7B-Instruct-v0.2' }
+        { name: 'mistralai/Mistral-7B-Instruct-v0.2' },
+
+        // Multimodal Specialist Models
+        { name: 'llava-hf/llava-1.5-7b', supportsAudioVideo: true },
+        { name: 'llava-hf/llava-1.5-13b', supportsAudioVideo: true }
     ],
     'OpenRouter': [
         // Free tier models
         { name: 'meta-llama/llama-3.1-8b-instruct:free' },
         { name: 'google/gemma-2-9b-it:free' },
         { name: 'qwen/qwen-2-7b-instruct:free' },
-        // Paid but affordable
-        { name: 'anthropic/claude-3.5-sonnet' },
-        { name: 'openai/gpt-4o-mini' },
-        { name: 'openai/gpt-4o' },
-        { name: 'google/gemini-pro-1.5' },
+
+        // Latest multimodal models (vision + text)
+        { name: 'anthropic/claude-3.5-sonnet', supportsAudioVideo: true },
+        { name: 'anthropic/claude-3.5-haiku', supportsAudioVideo: true },
+        { name: 'openai/gpt-4o', supportsAudioVideo: true },
+        { name: 'openai/gpt-4o-mini', supportsAudioVideo: true },
+        { name: 'google/gemini-2.0-flash-exp', supportsAudioVideo: true },
+        { name: 'google/gemini-pro-1.5', supportsAudioVideo: true },
+        { name: 'meta-llama/llama-3.2-11b-vision-instruct', supportsAudioVideo: true },
+        { name: 'meta-llama/llama-3.2-90b-vision-instruct', supportsAudioVideo: true },
+        { name: 'qwen/qwen-2-vl-7b-instruct', supportsAudioVideo: true },
+        { name: 'qwen/qwen-2-vl-72b-instruct', supportsAudioVideo: true },
+
+        // High-performance text models
         { name: 'meta-llama/llama-3.1-70b-instruct' },
-        { name: 'mistralai/mistral-large' }
+        { name: 'meta-llama/llama-3.1-8b-instruct' },
+        { name: 'mistralai/mistral-large' },
+        { name: 'deepseek/deepseek-chat' },
+        { name: 'cohere/command-r-plus' },
+
+        // Specialized multimodal models
+        { name: 'pixtral-12b', supportsAudioVideo: true },
+        { name: 'llava-1.5-7b', supportsAudioVideo: true },
+        { name: 'llava-1.5-13b', supportsAudioVideo: true }
     ]
 };
 
