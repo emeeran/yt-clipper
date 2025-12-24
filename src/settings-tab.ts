@@ -440,14 +440,40 @@ export class YouTubeSettingsTab extends PluginSettingTab {
 
         this.createAPIKeySetting(section, {
             name: 'Ollama API Key',
-            desc: 'Optional: For authenticated local Ollama instances.',
-            placeholder: 'Optional - leave blank for default Ollama',
+            desc: 'Required for Ollama Cloud (https://ollama.com). Get API key from ollama.com/settings. Not required for local instances.',
+            placeholder: 'Optional - required for cloud only',
             settingKey: 'ollamaApiKey',
-            validateFn: async (_key: string) => {
-                const res = await fetch('http://localhost:11434/api/tags');
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            validateFn: async (key: string) => {
+                const endpoint = this.settings.ollamaEndpoint || 'http://localhost:11434';
+                // Determine if this is cloud or local
+                const isCloud = endpoint.includes('ollama.com') || endpoint.includes('cloud');
+                const apiBaseUrl = isCloud ? 'https://ollama.com/api' : `${endpoint}/api`;
+
+                const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                if (isCloud && key) {
+                    headers['Authorization'] = `Bearer ${key}`;
+                }
+
+                const res = await fetch(`${apiBaseUrl}/tags`, { headers });
+                if (!res.ok) {
+                    const errorText = await res.text().catch(() => 'Unknown error');
+                    throw new Error(`HTTP ${res.status}: ${errorText}`);
+                }
             }
         });
+
+        // Ollama Endpoint setting
+        new Setting(section)
+            .setName('Ollama Endpoint')
+            .setDesc('Ollama API endpoint. Local: http://localhost:11434 | Cloud: https://ollama.com')
+            .addText(text => {
+                text
+                    .setPlaceholder('http://localhost:11434')
+                    .setValue(this.settings.ollamaEndpoint || 'http://localhost:11434')
+                    .onChange(async (value) => {
+                        await this.updateSetting('ollamaEndpoint', value.trim());
+                    });
+            });
     }
 
     private createAPIKeySetting(container: HTMLElement, opts: {

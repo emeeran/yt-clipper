@@ -18,7 +18,11 @@ export interface UserPreferences {
     lastAutoFallback?: boolean;
 
     // Provider-specific model preferences
-    [key: `lastModel_${string}`]?: string;
+    lastModel_Gemini?: string;
+    lastModel_Groq?: string;
+    lastModel_Ollama?: string;
+    lastModel_HuggingFace?: string;
+    lastModel_OpenRouter?: string;
 
     // User preferences
     preferredFormat?: OutputFormat;

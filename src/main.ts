@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS: YouTubePluginSettings = {
     geminiApiKey: '',
     groqApiKey: '',
     ollamaApiKey: '',
+    ollamaEndpoint: 'http://localhost:11434',
     huggingFaceApiKey: '',
     openRouterApiKey: '',
     outputPath: 'YouTube/Processed Videos',

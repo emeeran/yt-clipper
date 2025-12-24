@@ -86,8 +86,13 @@ export class ServiceContainer implements IServiceContainer {
                 providers.push(new OpenRouterProvider(this.settings.openRouterApiKey));
             }
 
-            // Add Ollama provider (doesn't require API key, runs locally)
-            providers.push(new OllamaProvider(this.settings.ollamaApiKey || ''));
+            // Add Ollama provider (supports both local and cloud instances)
+            providers.push(new OllamaProvider(
+                this.settings.ollamaApiKey || '',
+                undefined,
+                undefined,
+                this.settings.ollamaEndpoint || 'http://localhost:11434'
+            ));
 
             const service = new AIService(providers, this.settings);
             this.recordServiceMetrics('aiService', performance.now() - startTime);

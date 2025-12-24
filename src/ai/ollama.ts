@@ -2,21 +2,46 @@ import { BaseAIProvider } from './base';
 
 /**
  * Ollama AI provider implementation
+ * Supports both local Ollama instances and Ollama Cloud
+ * Local API: http://localhost:11434/api/generate
+ * Cloud API: https://ollama.com/api/generate
  */
 
 
 export class OllamaProvider extends BaseAIProvider {
     readonly name = 'Ollama';
 
-    // Ollama API endpoint - defaults to local instance
-    private readonly ollamaEndpoint: string;
+    // Ollama API base URL
+    private readonly apiBaseUrl: string;
 
     constructor(apiKey: string = '', model?: string, timeout?: number, endpoint?: string) {
-        // Ollama doesn't typically require an API key, but we'll store it if provided
-        super(apiKey, model || 'qwen3-coder:480b-cloud', timeout);
+        // Ollama doesn't typically require an API key for local, but required for cloud
+        super(apiKey, model || 'llama3.2', timeout);
 
-        // Default to localhost:11434 if no endpoint provided
-        this.ollamaEndpoint = endpoint || 'http://localhost:11434';
+        // Normalize endpoint to API base URL
+        // Local: http://localhost:11434 -> http://localhost:11434/api
+        // Cloud: https://ollama.com -> https://ollama.com/api
+        if (endpoint) {
+            if (endpoint.includes('ollama.com') || endpoint.includes('cloud')) {
+                // Cloud API - use https://ollama.com/api
+                this.apiBaseUrl = 'https://ollama.com/api';
+            } else if (endpoint.endsWith('/api')) {
+                // Already has /api suffix
+                this.apiBaseUrl = endpoint;
+            } else {
+                // Local instance - add /api suffix
+                this.apiBaseUrl = `${endpoint}/api`;
+            }
+        } else {
+            this.apiBaseUrl = 'http://localhost:11434/api';
+        }
+    }
+
+    /**
+     * Get the full API URL for a given endpoint path
+     */
+    private getApiUrl(path: string): string {
+        return `${this.apiBaseUrl}${path}`;
     }
 
     async process(prompt: string): Promise<string> {
@@ -38,7 +63,7 @@ export class OllamaProvider extends BaseAIProvider {
             };
 
             // Make the request to Ollama API
-            const response = await fetch(`${this.ollamaEndpoint}/api/generate`, {
+            const response = await fetch(this.getApiUrl('/generate'), {
                 method: 'POST',
                 headers: this.createHeaders(),
                 body: JSON.stringify(requestBody)
@@ -46,7 +71,18 @@ export class OllamaProvider extends BaseAIProvider {
 
             if (!response.ok) {
                 if (response.status === 404) {
+                    const isCloudModel = this._model.includes('-cloud') || this._model.includes(':cloud');
+                    if (isCloudModel && !this.apiBaseUrl.includes('ollama.com')) {
+                        throw new Error(`Cloud model "${this._model}" requires Ollama Cloud configuration. Either:\n1. Switch to a local model (e.g., "llama3.2:latest")\n2. Configure Ollama Cloud in settings with endpoint "https://ollama.com" and your API key`);
+                    }
                     throw new Error(`Ollama model not found: ${this._model}. Please make sure the model is pulled in Ollama using 'ollama pull ${this._model}'.`);
+                }
+                if (response.status === 401) {
+                    const isCloudModel = this._model.includes('-cloud') || this._model.includes(':cloud');
+                    if (isCloudModel) {
+                        throw new Error(`Cloud model "${this._model}" requires authentication. Please configure your Ollama Cloud API key in plugin settings (get it from https://ollama.com/settings)`);
+                    }
+                    throw new Error(`Ollama authentication failed. Check if your Ollama instance requires authentication.`);
                 }
                 if (response.status === 500) {
                     const errorData = await this.safeJsonParse(response);
@@ -129,7 +165,7 @@ export class OllamaProvider extends BaseAIProvider {
             };
 
             // Make the request to Ollama API chat endpoint
-            const response = await fetch(`${this.ollamaEndpoint}/api/chat`, {
+            const response = await fetch(this.getApiUrl('/chat'), {
                 method: 'POST',
                 headers: this.createHeaders(),
                 body: JSON.stringify(requestBody)
@@ -137,7 +173,18 @@ export class OllamaProvider extends BaseAIProvider {
 
             if (!response.ok) {
                 if (response.status === 404) {
+                    const isCloudModel = this._model.includes('-cloud') || this._model.includes(':cloud');
+                    if (isCloudModel && !this.apiBaseUrl.includes('ollama.com')) {
+                        throw new Error(`Cloud model "${this._model}" requires Ollama Cloud configuration. Either:\n1. Switch to a local model (e.g., "llama3.2:latest")\n2. Configure Ollama Cloud in settings with endpoint "https://ollama.com" and your API key`);
+                    }
                     throw new Error(`Ollama model not found: ${this._model}. Please make sure the model is pulled in Ollama using 'ollama pull ${this._model}'.`);
+                }
+                if (response.status === 401) {
+                    const isCloudModel = this._model.includes('-cloud') || this._model.includes(':cloud');
+                    if (isCloudModel) {
+                        throw new Error(`Cloud model "${this._model}" requires authentication. Please configure your Ollama Cloud API key in plugin settings (get it from https://ollama.com/settings)`);
+                    }
+                    throw new Error(`Ollama authentication failed. Check if your Ollama instance requires authentication.`);
                 }
                 if (response.status === 500) {
                     const errorData = await this.safeJsonParse(response);
@@ -173,7 +220,7 @@ export class OllamaProvider extends BaseAIProvider {
      */
     async checkAvailability(): Promise<boolean> {
         try {
-            const response = await fetch(`${this.ollamaEndpoint}/api/tags`, {
+            const response = await fetch(this.getApiUrl('/tags'), {
                 method: 'GET',
                 headers: this.createHeaders()
             });
@@ -189,7 +236,7 @@ export class OllamaProvider extends BaseAIProvider {
      */
     async checkModelAvailability(modelName: string): Promise<boolean> {
         try {
-            const response = await fetch(`${this.ollamaEndpoint}/api/tags`, {
+            const response = await fetch(this.getApiUrl('/tags'), {
                 method: 'GET',
                 headers: this.createHeaders()
             });

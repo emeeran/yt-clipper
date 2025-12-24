@@ -176,7 +176,9 @@ export class AIService implements IAIService {
     }
 
     /**
-     * Fetch models from local Ollama instance with caching
+     * Fetch models from Ollama instance (local or cloud) with caching
+     * Local: http://localhost:11434/api/tags
+     * Cloud: https://ollama.com/api/tags
      */
     private async fetchOllamaModels(bypassCache = false): Promise<string[]> {
         // Check if we have cached models that are still valid (shorter cache for local instance)
@@ -192,26 +194,60 @@ export class AIService implements IAIService {
             return cachedModels;
         }
 
-        // Otherwise, fetch fresh models from local Ollama instance
+        // Determine the endpoint to use
+        const userEndpoint = this.settings.ollamaEndpoint || 'http://localhost:11434';
+        const isCloud = userEndpoint.includes('ollama.com') ||
+                        userEndpoint.includes('cloud') ||
+                        userEndpoint.startsWith('https://ollama.com');
+
+        const apiEndpoint = isCloud ? 'https://ollama.com/api' : userEndpoint;
+        logger.debug(`Fetching fresh Ollama models from ${isCloud ? 'Ollama Cloud' : 'local'} instance: ${apiEndpoint}`, 'AIService');
+
+        // Otherwise, fetch fresh models from Ollama instance (local or cloud)
         try {
-            logger.debug('Fetching fresh Ollama models from local instance', 'AIService');
-            const defaultOllamaEndpoint = 'http://localhost:11434';
-            const response = await this.httpClient.get(`${defaultOllamaEndpoint}/api/tags`, {
-                headers: { 'Content-Type': 'application/json' }
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+
+            // Ollama Cloud requires API key authentication
+            if (isCloud) {
+                if (!this.settings.ollamaApiKey) {
+                    logger.warn('Ollama Cloud requires an API key. Please configure Ollama API Key in settings.', 'AIService');
+                } else {
+                    headers['Authorization'] = `Bearer ${this.settings.ollamaApiKey}`;
+                    logger.debug('Using Ollama Cloud API key for authentication', 'AIService');
+                }
+            }
+
+            // Use direct fetch instead of httpClient to bypass potential issues
+            const response = await fetch(`${apiEndpoint}/tags`, {
+                method: 'GET',
+                headers
             });
+
+            logger.debug(`Ollama API response status: ${response.status} ${response.statusText}`, 'AIService');
 
             if (response.ok) {
                 const data = await response.json();
+                logger.debug(`Ollama API raw response: ${JSON.stringify(data).substring(0, 500)}...`, 'AIService');
+
                 if (data?.models && Array.isArray(data.models)) {
+                    logger.debug(`Ollama API returned ${data.models.length} total models`, 'AIService');
                     const modelNames = data.models
-                        .map((model: any) => model.name || model.id || '')
+                        .map((model: any) => model.name || model.id || model.model || '')
                         .filter((name: string) => name !== '');
                     logger.debug(`Fetched ${modelNames.length} fresh models from Ollama`, 'AIService');
+                    logger.debug(`Ollama models: ${JSON.stringify(modelNames)}`, 'AIService');
                     return modelNames;
+                } else {
+                    logger.warn(`Ollama API response missing models array. Response structure: ${JSON.stringify(data).substring(0, 200)}`, 'AIService');
                 }
+            } else {
+                const errorText = await response.text().catch(() => 'Unknown error');
+                logger.warn(`Ollama API returned status ${response.status}: ${response.statusText}. Body: ${errorText}`, 'AIService');
             }
         } catch (error) {
-            logger.warn('Ollama not accessible, using cached list or fallback', 'AIService');
+            logger.warn('Ollama fetch error', 'AIService', {
+                error: error instanceof Error ? error.message : String(error)
+            });
         }
 
         // Fallback: return cached models if available (even if expired), or static list
@@ -220,6 +256,7 @@ export class AIService implements IAIService {
             return cachedModels;
         }
 
+        logger.debug('Using static Ollama model list as final fallback', 'AIService');
         return (PROVIDER_MODEL_OPTIONS['Ollama'] as any[]).map(m => typeof m === 'string' ? m : m.name);
     }
 
@@ -244,8 +281,18 @@ export class AIService implements IAIService {
         // Otherwise, fetch ALL fresh models from API
         try {
             logger.debug('Fetching ALL OpenRouter models from API', 'AIService');
+
+            // Prepare headers with API key if available
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (this.settings.openRouterApiKey) {
+                headers['Authorization'] = `Bearer ${this.settings.openRouterApiKey}`;
+                logger.debug('Using OpenRouter API key for authentication', 'AIService');
+            } else {
+                logger.warn('No OpenRouter API key found - models fetch may fail', 'AIService');
+            }
+
             const response = await this.httpClient.get('https://openrouter.ai/api/v1/models', {
-                headers: { 'Content-Type': 'application/json' }
+                headers
             });
 
             if (response.ok) {
@@ -311,10 +358,20 @@ export class AIService implements IAIService {
         // Otherwise, fetch ALL fresh models from API
         try {
             logger.debug('Fetching ALL HuggingFace models from API', 'AIService');
+
+            // Prepare headers with API key if available
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (this.settings.huggingFaceApiKey) {
+                headers['Authorization'] = `Bearer ${this.settings.huggingFaceApiKey}`;
+                logger.debug('Using HuggingFace API key for authentication', 'AIService');
+            } else {
+                logger.warn('No HuggingFace API key found - models fetch may be limited', 'AIService');
+            }
+
             // Fetch more models to include all available models
             const response = await this.httpClient.get(
                 'https://huggingface.co/api/models?pipeline_tag=text-generation&inference=warm&sort=downloads&limit=500',
-                { headers: { 'Content-Type': 'application/json' } }
+                { headers }
             );
 
             if (response.ok) {

@@ -3,7 +3,7 @@ import { ErrorHandler } from '../../../services/error-handler';
 import { MESSAGES } from '../../../constants/index';
 import { PROVIDER_MODEL_OPTIONS } from '../../../ai/api';
 import { OutputFormat, PerformanceMode } from '../../../types';
-import { UserPreferencesService } from '../../../services/user-preferences-service';
+import { UserPreferencesService, UserPreferences } from '../../../services/user-preferences-service';
 import { ValidationUtils } from '../../../validation';
 import { App, Notice } from 'obsidian';
 
@@ -193,47 +193,48 @@ export class YouTubeUrlModal extends BaseModal {
     private createCompactUrlSection(): void {
         const urlContainer = this.contentEl.createDiv();
         urlContainer.style.cssText = `
-            margin: 16px 0;
+            margin: 4px 0;
             position: relative;
         `;
 
-        // URL input with inline actions
+        // URL input with inline actions (more compact)
         const inputWrapper = urlContainer.createDiv();
         inputWrapper.style.cssText = `
             position: relative;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 4px;
         `;
 
-        // URL input
+        // URL input (smaller padding)
         this.urlInput = inputWrapper.createEl('input');
         this.urlInput.type = 'url';
-        this.urlInput.placeholder = 'Paste YouTube URL here...';
+        this.urlInput.placeholder = 'Paste URL...';
         this.urlInput.style.cssText = `
             flex: 1;
-            padding: 12px;
+            padding: 6px 8px;
             border: 1px solid var(--background-modifier-border);
-            border-radius: 6px;
-            font-size: 0.9rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
             background: var(--background-primary);
             color: var(--text-normal);
             transition: all 0.2s ease;
             outline: none;
         `;
 
-        // Paste button
+        // Paste button (more compact)
         this.pasteButton = inputWrapper.createEl('button');
         this.pasteButton.innerHTML = '📋';
         this.pasteButton.style.cssText = `
-            padding: 8px 12px;
+            padding: 6px;
             background: var(--interactive-accent);
-            border: 1px solid var(--background-modifier-border);
-            border-radius: 6px;
+            border: none;
+            border-radius: 4px;
             cursor: pointer;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             transition: all 0.2s ease;
             color: white;
+            flex-shrink: 0;
         `;
 
         this.pasteButton.addEventListener('click', () => this.handleSmartPaste());
@@ -259,22 +260,22 @@ export class YouTubeUrlModal extends BaseModal {
             }
         });
 
-        // Validation message container
+        // Validation message container (compact)
         this.validationMessage = urlContainer.createDiv();
         this.validationMessage.style.cssText = `
-            margin-top: 6px;
-            padding: 6px;
-            font-size: 0.8rem;
+            margin-top: 2px;
+            padding: 2px 4px;
+            font-size: 0.7rem;
             color: var(--text-muted);
-            border-radius: 4px;
+            border-radius: 3px;
         `;
 
-        // Video preview container (hidden by default)
+        // Video preview container (hidden by default, more compact)
         this.createVideoPreviewSection(urlContainer);
     }
 
     /**
-     * Create video preview section with thumbnail and metadata
+     * Create ultra-compact video preview section
      */
     private videoPreviewContainer?: HTMLDivElement;
     private videoTitleEl?: HTMLDivElement;
@@ -286,32 +287,33 @@ export class YouTubeUrlModal extends BaseModal {
         this.videoPreviewContainer = parent.createDiv();
         this.videoPreviewContainer.style.cssText = `
             display: none;
-            margin-top: 12px;
-            padding: 12px;
-            background: var(--background-primary);
-            border-radius: 10px;
+            margin-top: 4px;
+            padding: 6px;
+            background: var(--background-secondary);
+            border-radius: 4px;
             border: 1px solid var(--background-modifier-border);
         `;
 
         const previewContent = this.videoPreviewContainer.createDiv();
         previewContent.style.cssText = `
             display: flex;
-            gap: 12px;
-            align-items: flex-start;
+            gap: 6px;
+            align-items: center;
         `;
 
-        // Thumbnail
+        // Thumbnail (ultra compact)
         this.thumbnailEl = previewContent.createEl('img');
         this.thumbnailEl.style.cssText = `
-            width: 120px;
-            height: 68px;
-            border-radius: 6px;
+            width: 60px;
+            height: 34px;
+            border-radius: 3px;
             object-fit: cover;
             background: var(--background-modifier-border);
+            flex-shrink: 0;
         `;
         this.thumbnailEl.alt = 'Video thumbnail';
 
-        // Metadata container
+        // Metadata container (ultra compact)
         const metaContainer = previewContent.createDiv();
         metaContainer.style.cssText = `
             flex: 1;
@@ -320,10 +322,10 @@ export class YouTubeUrlModal extends BaseModal {
 
         this.videoTitleEl = metaContainer.createDiv();
         this.videoTitleEl.style.cssText = `
-            font-weight: 600;
-            font-size: 0.9rem;
+            font-weight: 500;
+            font-size: 0.8rem;
             color: var(--text-normal);
-            margin-bottom: 4px;
+            margin-bottom: 1px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -332,21 +334,21 @@ export class YouTubeUrlModal extends BaseModal {
         const metaRow = metaContainer.createDiv();
         metaRow.style.cssText = `
             display: flex;
-            gap: 12px;
-            font-size: 0.8rem;
+            gap: 6px;
+            font-size: 0.7rem;
             color: var(--text-muted);
         `;
 
         this.videoChannelEl = metaRow.createSpan();
         this.videoDurationEl = metaRow.createSpan();
 
-        // Provider status (shown during processing)
+        // Provider status (shown during processing, ultra compact)
         this.providerStatusEl = this.videoPreviewContainer.createDiv();
         this.providerStatusEl.style.cssText = `
-            margin-top: 8px;
-            padding: 6px 10px;
-            background: var(--background-secondary);
-            border-radius: 6px;
+            margin-top: 3px;
+            padding: 3px 6px;
+            background: var(--background-primary);
+            border-radius: 3px;
             font-size: 0.8rem;
             color: var(--text-muted);
             display: none;
@@ -453,40 +455,39 @@ export class YouTubeUrlModal extends BaseModal {
     }
 
     /**
-     * Create three dropdowns in a single row: Format, Provider, Model
+     * Create ultra-compact dropdowns row: Format, Provider, Model
      */
     private createDropDownRow(): void {
         const dropdownContainer = this.contentEl.createDiv();
         dropdownContainer.style.cssText = `
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 12px;
-            margin: 16px 0;
+            grid-template-columns: 1fr 1fr 1.2fr;
+            gap: 6px;
+            margin: 6px 0;
             align-items: end;
         `;
 
-        // Format dropdown
+        // Format dropdown (ultra compact)
         const formatContainer = dropdownContainer.createDiv();
-        formatContainer.style.cssText = `
-            flex: 1;
-        `;
 
         const formatLabel = formatContainer.createDiv();
         formatLabel.textContent = 'Format';
         formatLabel.style.cssText = `
             font-weight: 500;
-            margin-bottom: 6px;
-            color: var(--text-normal);
-            font-size: 0.9rem;
+            margin-bottom: 2px;
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
         `;
 
         this.formatSelect = formatContainer.createEl('select');
         this.formatSelect.style.cssText = `
             width: 100%;
-            padding: 10px 14px;
+            padding: 5px 7px;
             border: 1px solid var(--background-modifier-border);
-            border-radius: 6px;
-            font-size: 0.9rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
             background: var(--background-primary);
             color: var(--text-normal);
             cursor: pointer;
@@ -495,7 +496,7 @@ export class YouTubeUrlModal extends BaseModal {
             appearance: none;
             -webkit-appearance: none;
             -moz-appearance: none;
-            min-height: 40px;
+            min-height: 30px;
         `;
 
         // Add format options
@@ -526,28 +527,27 @@ export class YouTubeUrlModal extends BaseModal {
             UserPreferencesService.setPreference('lastFormat', this.format);
         });
 
-        // Provider dropdown
+        // Provider dropdown (ultra compact)
         const providerContainer = dropdownContainer.createDiv();
-        providerContainer.style.cssText = `
-            flex: 1;
-        `;
 
         const providerLabel = providerContainer.createDiv();
         providerLabel.textContent = 'Provider';
         providerLabel.style.cssText = `
             font-weight: 500;
-            margin-bottom: 6px;
-            color: var(--text-normal);
-            font-size: 0.9rem;
+            margin-bottom: 2px;
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
         `;
 
         this.providerSelect = providerContainer.createEl('select');
         this.providerSelect.style.cssText = `
             width: 100%;
-            padding: 10px 14px;
+            padding: 5px 7px;
             border: 1px solid var(--background-modifier-border);
-            border-radius: 6px;
-            font-size: 0.9rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
             background: var(--background-primary);
             color: var(--text-normal);
             cursor: pointer;
@@ -556,7 +556,7 @@ export class YouTubeUrlModal extends BaseModal {
             appearance: none;
             -webkit-appearance: none;
             -moz-appearance: none;
-            min-height: 40px;
+            min-height: 30px;
         `;
 
         // Add provider options
@@ -619,10 +619,9 @@ export class YouTubeUrlModal extends BaseModal {
             UserPreferencesService.setPreference('lastProvider', this.selectedProvider);
         });
 
-        // Model dropdown with refresh button container
+        // Model dropdown with ultra-compact action buttons
         const modelContainer = dropdownContainer.createDiv();
         modelContainer.style.cssText = `
-            flex: 1;
             position: relative;
         `;
 
@@ -631,30 +630,41 @@ export class YouTubeUrlModal extends BaseModal {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 6px;
+            margin-bottom: 2px;
         `;
 
         const modelLabel = modelLabelRow.createDiv();
         modelLabel.textContent = 'Model';
         modelLabel.style.cssText = `
             font-weight: 500;
-            color: var(--text-normal);
-            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
         `;
 
-        // Create refresh button
-        const refreshBtn = modelLabelRow.createEl('button');
+        // Action buttons container (ultra compact)
+        const actionButtons = modelLabelRow.createDiv();
+        actionButtons.style.cssText = `
+            display: flex;
+            gap: 2px;
+        `;
+
+        // Create refresh button (ultra compact)
+        const refreshBtn = actionButtons.createEl('button');
         this.refreshButton = refreshBtn;
         refreshBtn.innerHTML = '🔄';
+        refreshBtn.title = 'Refresh (Shift+click to force)';
         refreshBtn.style.cssText = `
             background: none;
             border: none;
             cursor: pointer;
-            font-size: 0.9rem;
-            padding: 2px 4px;
-            border-radius: 4px;
-            opacity: 0.7;
+            font-size: 0.75rem;
+            padding: 1px;
+            border-radius: 3px;
+            opacity: 0.5;
             transition: opacity 0.2s, background 0.2s;
+            line-height: 1;
         `;
 
         refreshBtn.addEventListener('mouseenter', () => {
@@ -724,20 +734,20 @@ export class YouTubeUrlModal extends BaseModal {
         // Set initial tooltip
         this.updateRefreshButtonTooltip();
 
-        // Create "Set Default" button
-        const setDefaultBtn = modelLabelRow.createEl('button');
+        // Create "Set Default" button (ultra compact)
+        const setDefaultBtn = actionButtons.createEl('button');
         setDefaultBtn.innerHTML = '⭐';
         setDefaultBtn.title = 'Set current selections as default';
         setDefaultBtn.style.cssText = `
             background: none;
             border: none;
             cursor: pointer;
-            font-size: 0.9rem;
-            padding: 2px 4px;
-            border-radius: 4px;
-            opacity: 0.7;
+            font-size: 0.75rem;
+            padding: 1px;
+            border-radius: 3px;
+            opacity: 0.5;
             transition: opacity 0.2s, background 0.2s;
-            margin-left: 2px;
+            line-height: 1;
         `;
 
         setDefaultBtn.addEventListener('mouseenter', () => {
@@ -746,7 +756,7 @@ export class YouTubeUrlModal extends BaseModal {
         });
 
         setDefaultBtn.addEventListener('mouseleave', () => {
-            setDefaultBtn.style.opacity = '0.7';
+            setDefaultBtn.style.opacity = '0.5';
             setDefaultBtn.style.background = 'none';
         });
 
@@ -773,20 +783,20 @@ export class YouTubeUrlModal extends BaseModal {
             // Visual feedback
             const originalText = setDefaultBtn.innerHTML;
             setDefaultBtn.innerHTML = '✅';
-            new Notice(`Default set: ${currentFormat} / ${currentProvider} / ${currentModel?.split('/').pop() || currentModel} (Auto-fallback: ${currentAutoFallback ? 'ON' : 'OFF'})`);
+            new Notice(`✅ Saved: ${currentModel?.split('/').pop()?.substring(0, 15) || currentModel}`);
 
             setTimeout(() => {
                 setDefaultBtn.innerHTML = originalText;
-            }, 1500);
+            }, 1000);
         });
 
         this.modelSelect = modelContainer.createEl('select');
         this.modelSelect.style.cssText = `
             width: 100%;
-            padding: 10px 14px;
+            padding: 5px 7px;
             border: 1px solid var(--background-modifier-border);
-            border-radius: 6px;
-            font-size: 0.9rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
             background: var(--background-primary);
             color: var(--text-normal);
             cursor: pointer;
@@ -795,7 +805,7 @@ export class YouTubeUrlModal extends BaseModal {
             appearance: none;
             -webkit-appearance: none;
             -moz-appearance: none;
-            min-height: 40px;
+            min-height: 30px;
         `;
 
         // Don't populate models yet - onOpen() will auto-fetch from API
@@ -810,8 +820,9 @@ export class YouTubeUrlModal extends BaseModal {
 
             // Also save provider-specific model preference
             if (this.selectedProvider) {
+                const providerKey = `lastModel_${this.selectedProvider.replace(/\s+/g, '')}` as keyof UserPreferences;
                 const preferences = UserPreferencesService.loadPreferences();
-                preferences[`lastModel_${this.selectedProvider}`] = this.selectedModel;
+                (preferences as any)[providerKey] = this.selectedModel;
                 UserPreferencesService.savePreferences(preferences);
             }
         });
@@ -824,7 +835,7 @@ export class YouTubeUrlModal extends BaseModal {
     }
 
     /**
-     * Create custom prompt input section
+     * Create ultra-compact custom prompt input section
      */
     private customPrompt = '';
 
@@ -832,10 +843,10 @@ export class YouTubeUrlModal extends BaseModal {
         this.customPromptContainer = parent.createDiv();
         this.customPromptContainer.style.cssText = `
             display: none;
-            margin-top: 12px;
-            padding: 12px;
+            margin-top: 5px;
+            padding: 8px;
             background: var(--background-secondary);
-            border-radius: 8px;
+            border-radius: 4px;
             border: 1px solid var(--background-modifier-border);
             animation: ytc-slide-down 0.2s ease-out;
         `;
@@ -858,14 +869,14 @@ export class YouTubeUrlModal extends BaseModal {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         `;
 
         const labelContainer = labelRow.createDiv();
         labelContainer.style.cssText = `
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 4px;
         `;
 
         labelContainer.createSpan({ text: '✏️' });
@@ -873,36 +884,36 @@ export class YouTubeUrlModal extends BaseModal {
         label.style.cssText = `
             font-weight: 600;
             color: var(--text-normal);
-            font-size: 0.9rem;
+            font-size: 0.8rem;
         `;
 
-        const hint = labelRow.createSpan({ text: 'Describe how you want the video summarized' });
+        const hint = labelRow.createSpan({ text: 'Describe your summary' });
         hint.style.cssText = `
             color: var(--text-muted);
-            font-size: 0.75rem;
+            font-size: 0.7rem;
         `;
 
         this.customPromptInput = this.customPromptContainer.createEl('textarea');
-        this.customPromptInput.placeholder = 'e.g., "Summarize this video as a step-by-step tutorial with code examples" or "Extract all key quotes and insights"';
+        this.customPromptInput.placeholder = 'e.g., "Step-by-step tutorial with code examples"';
         this.customPromptInput.style.cssText = `
             width: 100%;
-            min-height: 80px;
-            padding: 10px 12px;
+            min-height: 60px;
+            padding: 6px 8px;
             border: 1px solid var(--background-modifier-border);
-            border-radius: 6px;
-            font-size: 0.9rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
             background: var(--background-primary);
             color: var(--text-normal);
             resize: vertical;
             outline: none;
             transition: border-color 0.2s ease, box-shadow 0.2s ease;
             font-family: inherit;
-            line-height: 1.5;
+            line-height: 1.4;
         `;
 
         this.customPromptInput.addEventListener('focus', () => {
-            this.customPromptInput!.style.borderColor = 'var(--ytc-accent, #0d9488)';
-            this.customPromptInput!.style.boxShadow = '0 0 0 2px rgba(13, 148, 136, 0.1)';
+            this.customPromptInput!.style.borderColor = 'var(--interactive-accent)';
+            this.customPromptInput!.style.boxShadow = '0 0 0 2px rgba(99, 102, 241, 0.1)';
         });
 
         this.customPromptInput.addEventListener('blur', () => {
@@ -914,7 +925,7 @@ export class YouTubeUrlModal extends BaseModal {
             this.customPrompt = this.customPromptInput?.value ?? '';
         });
 
-        // Character count
+        // Character count (ultra compact)
         const charCount = this.customPromptContainer.createDiv();
         charCount.style.cssText = `
             text-align: right;
@@ -948,7 +959,7 @@ export class YouTubeUrlModal extends BaseModal {
     }
 
     /**
-     * Create auto fallback toggle
+     * Create ultra-compact auto fallback toggle
      */
     private autoFallbackEnabled = true;
     private fallbackToggle?: HTMLInputElement;
@@ -959,18 +970,18 @@ export class YouTubeUrlModal extends BaseModal {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-top: 12px;
-            padding: 8px 12px;
+            margin-top: 5px;
+            padding: 4px 8px;
             background: var(--background-secondary);
-            border-radius: 8px;
-            font-size: 0.85rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
         `;
 
         const labelContainer = toggleRow.createDiv();
         labelContainer.style.cssText = `
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 4px;
         `;
 
         labelContainer.createSpan({ text: '🔄' });
@@ -978,20 +989,22 @@ export class YouTubeUrlModal extends BaseModal {
         label.style.cssText = `
             color: var(--text-normal);
             font-weight: 500;
+            font-size: 0.75rem;
         `;
 
-        const hint = labelContainer.createSpan({ text: '(try next provider on failure)' });
+        const hint = labelContainer.createSpan({ text: '(err)' });
         hint.style.cssText = `
             color: var(--text-muted);
-            font-size: 0.8rem;
+            font-size: 0.7rem;
         `;
 
-        // Toggle switch container
+        // Ultra-compact toggle switch container
         const toggleContainer = toggleRow.createDiv();
         toggleContainer.style.cssText = `
             position: relative;
-            width: 44px;
-            height: 24px;
+            width: 30px;
+            height: 16px;
+            flex-shrink: 0;
         `;
 
         this.fallbackToggle = toggleContainer.createEl('input', { type: 'checkbox' });
@@ -999,12 +1012,12 @@ export class YouTubeUrlModal extends BaseModal {
         this.autoFallbackEnabled = this.fallbackToggle.checked;
         this.fallbackToggle.style.cssText = `
             position: absolute;
-            width: 44px;
-            height: 24px;
+            width: 30px;
+            height: 16px;
             appearance: none;
             -webkit-appearance: none;
             background: var(--background-modifier-border);
-            border-radius: 12px;
+            border-radius: 8px;
             cursor: pointer;
             transition: background 0.2s ease;
             outline: none;
@@ -1013,20 +1026,20 @@ export class YouTubeUrlModal extends BaseModal {
         // Toggle knob styling via pseudo-element simulation
         const updateToggleStyle = () => {
             if (this.fallbackToggle?.checked) {
-                this.fallbackToggle.style.background = 'var(--ytc-accent, #0d9488)';
+                this.fallbackToggle.style.background = 'var(--interactive-accent)';
             } else {
                 this.fallbackToggle!.style.background = 'var(--background-modifier-border)';
             }
         };
 
-        // Create toggle knob
+        // Create ultra-compact toggle knob
         const knob = toggleContainer.createDiv();
         knob.style.cssText = `
             position: absolute;
             top: 2px;
             left: 2px;
-            width: 20px;
-            height: 20px;
+            width: 12px;
+            height: 12px;
             background: white;
             border-radius: 50%;
             transition: transform 0.2s ease;
@@ -1036,7 +1049,7 @@ export class YouTubeUrlModal extends BaseModal {
 
         const updateKnob = () => {
             if (this.fallbackToggle?.checked) {
-                knob.style.transform = 'translateX(20px)';
+                knob.style.transform = 'translateX(14px)';
             } else {
                 knob.style.transform = 'translateX(0)';
             }
@@ -1111,7 +1124,8 @@ export class YouTubeUrlModal extends BaseModal {
 
         // Get last used model for this specific provider
         const preferences = UserPreferencesService.loadPreferences();
-        const lastProviderModel = preferences[`lastModel_${currentProvider}`] as string;
+        const providerKey = `lastModel_${currentProvider.replace(/\s+/g, '')}` as keyof UserPreferences;
+        const lastProviderModel = (preferences as any)[providerKey] as string;
 
         if (lastProviderModel && models.includes(lastProviderModel)) {
             modelToSelect = lastProviderModel;
@@ -1435,25 +1449,26 @@ export class YouTubeUrlModal extends BaseModal {
     }
 
     /**
-     * Create progress section to display real-time progress
+     * Create ultra-compact progress section
      */
     private createProgressSection(): void {
         this.progressContainer = this.contentEl.createDiv();
         this.progressContainer.setAttribute('role', 'region');
         this.progressContainer.setAttribute('aria-label', 'Processing progress');
         this.progressContainer.setAttribute('aria-live', 'polite');
-        this.progressContainer.style.marginTop = '16px';
+        this.progressContainer.style.marginTop = '6px';
         this.progressContainer.style.display = 'none';
 
-        // Progress text
+        // Progress text (ultra compact)
         this.progressText = this.progressContainer.createDiv();
         this.progressText.id = 'progress-text';
-        this.progressText.style.marginBottom = '8px';
+        this.progressText.style.marginBottom = '3px';
         this.progressText.style.fontWeight = '500';
+        this.progressText.style.fontSize = '0.75rem';
         this.progressText.style.color = 'var(--text-accent)';
-        this.progressText.textContent = 'Processing video...';
+        this.progressText.textContent = 'Processing...';
 
-        // Progress bar container
+        // Progress bar container (ultra compact)
         const progressBarContainer = this.progressContainer.createDiv();
         progressBarContainer.setAttribute('role', 'progressbar');
         progressBarContainer.setAttribute('aria-valuenow', '0');
@@ -1461,43 +1476,43 @@ export class YouTubeUrlModal extends BaseModal {
         progressBarContainer.setAttribute('aria-valuemax', '100');
         progressBarContainer.setAttribute('aria-labelledby', 'progress-text');
         progressBarContainer.style.width = '100%';
-        progressBarContainer.style.height = '10px';
+        progressBarContainer.style.height = '4px';
         progressBarContainer.style.backgroundColor = 'var(--background-modifier-border)';
-        progressBarContainer.style.borderRadius = '5px';
+        progressBarContainer.style.borderRadius = '2px';
         progressBarContainer.style.overflow = 'hidden';
 
         // Progress bar
         this.progressBar = progressBarContainer.createDiv();
         this.progressBar.style.height = '100%';
         this.progressBar.style.backgroundColor = 'var(--interactive-accent)';
-        this.progressBar.style.borderRadius = '5px';
+        this.progressBar.style.borderRadius = '2px';
         this.progressBar.style.width = '0%';
         this.progressBar.style.transition = 'width 0.3s ease';
     }
 
     /**
-     * Create action buttons with accessibility
+     * Create ultra-compact action buttons
      */
     private createActionButtons(): void {
         const container = this.contentEl.createDiv();
         container.style.cssText = `
             display: flex;
             justify-content: flex-end;
-            gap: 12px;
-            margin-top: 20px;
-            padding-top: 16px;
+            gap: 6px;
+            margin-top: 8px;
+            padding-top: 8px;
             border-top: 1px solid var(--background-modifier-border);
         `;
 
-        // Cancel button
+        // Cancel button (ultra compact)
         const cancelBtn = container.createEl('button');
         cancelBtn.textContent = MESSAGES.MODALS.CANCEL;
         cancelBtn.style.cssText = `
-            padding: 8px 16px;
+            padding: 4px 10px;
             border: 1px solid var(--background-modifier-border);
-            border-radius: 6px;
+            border-radius: 4px;
             cursor: pointer;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             font-weight: 500;
             background: var(--background-secondary);
             color: var(--text-normal);
@@ -1506,15 +1521,15 @@ export class YouTubeUrlModal extends BaseModal {
 
         cancelBtn.addEventListener('click', () => this.close());
 
-        // Process button
+        // Process button (ultra compact)
         this.processButton = container.createEl('button');
         this.processButton.textContent = MESSAGES.MODALS.PROCESS;
         this.processButton.style.cssText = `
-            padding: 8px 16px;
+            padding: 4px 12px;
             border: none;
-            border-radius: 6px;
+            border-radius: 4px;
             cursor: pointer;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             font-weight: 500;
             background: var(--interactive-accent);
             color: var(--text-on-accent);
@@ -1523,15 +1538,15 @@ export class YouTubeUrlModal extends BaseModal {
 
         this.processButton.addEventListener('click', () => this.handleProcess());
 
-        // Open Note button (hidden initially)
+        // Open Note button (hidden initially, ultra compact)
         this.openButton = container.createEl('button');
-        this.openButton.textContent = 'Open Note';
+        this.openButton.textContent = 'Open';
         this.openButton.style.cssText = `
-            padding: 8px 16px;
+            padding: 4px 10px;
             border: none;
-            border-radius: 6px;
+            border-radius: 4px;
             cursor: pointer;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             font-weight: 500;
             background: var(--interactive-accent);
             color: var(--text-on-accent);
@@ -1541,20 +1556,19 @@ export class YouTubeUrlModal extends BaseModal {
         this.openButton.style.display = 'none';
         this.openButton.addEventListener('click', () => this.handleOpenFile());
 
-        // Copy Path button (hidden initially)
+        // Copy Path button (hidden initially, ultra compact)
         this.copyPathButton = container.createEl('button');
-        this.copyPathButton.textContent = '📋 Copy Path';
+        this.copyPathButton.textContent = '📋';
+        this.copyPathButton.title = 'Copy file path';
         this.copyPathButton.style.cssText = `
-            padding: 8px 16px;
+            padding: 4px 8px;
             border: 1px solid var(--background-modifier-border);
-            border-radius: 6px;
+            border-radius: 4px;
             cursor: pointer;
-            font-size: 0.9rem;
-            font-weight: 500;
+            font-size: 0.8rem;
             background: var(--background-secondary);
             color: var(--text-normal);
             transition: all 0.2s ease;
-            margin-left: 8px;
         `;
         this.copyPathButton.style.display = 'none';
         this.copyPathButton.addEventListener('click', () => this.handleCopyPath());
