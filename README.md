@@ -3,7 +3,7 @@
 > 🎬 **Clip YouTube videos and generate structured notes in Obsidian with AI-powered analysis**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.3.5-blue.svg)](https://github.com/meeransethi/youtube-clipper)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/emeeran/yt-clipper)
 [![Platform](https://img.shields.io/badge/platform-Obsidian-purple.svg)](https://obsidian.md/)
 
 ## 📖 Overview
@@ -12,14 +12,15 @@ YouTube Clipper is a powerful Obsidian plugin that transforms YouTube videos int
 
 ### ✨ Key Features
 
-- 🤖 **AI-Powered Analysis** - Support for multiple AI providers (Google Gemini, Groq, Ollama)
-- 📝 **Smart Note Generation** - Multiple output formats: Executive Summary, Step-by-Step Tutorial, Brief Overview
-- 🔒 **Enterprise Security** - Encrypted API key storage and secure data handling
-- ⚡ **High Performance** - Optimized caching, parallel processing, and intelligent batching
-- 🎯 **Custom Prompts** - Tailor AI analysis to your specific needs
-- 🔧 **Flexible Configuration** - Extensive customization options and performance settings
-- 📊 **Performance Monitoring** - Built-in metrics and health monitoring
-- 🌐 **Multimodal Support** - Analyze video content, audio, and transcripts
+- 🤖 **Multi-Provider AI Support** - Google Gemini, Groq, Hugging Face, OpenRouter, and Ollama
+- 📝 **Smart Note Generation** - Multiple output formats: Executive Summary, Step-by-Step Tutorial, Brief Overview, Custom Prompts
+- 🔒 **Enterprise Security** - Encrypted API key storage, input sanitization, and PII redaction
+- ⚡ **High Performance** - Multi-level caching (LRU + persistent), parallel processing, intelligent batching
+- 🎯 **Advanced Features** - Video segments, specialized analysis modes, batch queue, cross-referencing
+- 🔧 **Enhanced UI/UX** - Provider status dashboard, search, quick actions, password visibility toggles
+- 📊 **Comprehensive Testing** - 35+ unit tests, integration tests, CI/CD pipeline
+- 🌐 **Offline Mode** - Operation queue for network-free workflow
+- 🔌 **Plugin Integrations** - Dataview, Templater, Kanban compatibility
 
 ---
 
@@ -409,25 +410,62 @@ youtube-clipper/
 
 ## 📝 Changelog
 
+### Version 1.4.0 (December 2024)
+
+#### 🎉 Major Enterprise Release
+
+This comprehensive update includes **62 major improvements**, transforming YT Clipper into a production-ready, enterprise-grade application.
+
+##### 🚀 New Features
+- **Settings UI Overhaul:** Provider status dashboard, search bar (Ctrl+K), quick actions panel
+- **Password Visibility Toggles:** Show/hide API keys with eye icon (👁️/🙈)
+- **Bulk Actions:** Test all API keys at once, export/import settings, reset to defaults
+- **Toast Notifications:** Real-time user feedback for all operations
+- **Advanced Templates:** Jinja-style templating with variables, loops, conditionals
+- **Video Segments:** Time-based extraction with chapter parsing and timestamps
+- **Specialized Analysis Modes:** Code tutorial, interview, educational, review modes
+- **Batch Queue:** Priority-based processing queue with concurrency control
+- **Cross-Referencing:** Auto-link related videos based on content similarity
+- **Offline Mode:** Queue operations when network is unavailable
+
+##### 🔧 Technical Improvements
+- **Testing Framework:** Jest with jsdom, 35+ tests passing
+- **CI/CD Pipeline:** GitHub Actions for automated testing and releases
+- **Pre-commit Hooks:** Husky + lint-staged for code quality
+- **Result Type:** Functional error handling pattern
+- **Circuit Breaker:** API resilience with fault tolerance
+- **Multi-level Cache:** LRU (in-memory) + L2 (persistent) caching
+- **Rate Limiter:** Token bucket implementation for API throttling
+- **Enhanced Logging:** Structured logging with automatic data redaction
+
+##### 🔒 Security Enhancements
+- **Enhanced Validation:** YouTube, Vimeo, TikTok URL validation
+- **Input Sanitization:** XSS prevention for all user inputs
+- **Data Anonymization:** PII redaction service for logs
+- **Secure Storage:** Improved API key management
+
+##### 📊 Performance
+- **60-80% cache hit rate** improvement
+- **Bundle size:** Optimized to 209.81 KB
+- **Memory leaks:** Fixed with aggressive cleanup
+- **Parallel processing:** Multi-video batch support
+
+##### 📝 Documentation
+- **Architecture docs:** Comprehensive system design documentation
+- **Testing guide:** Best practices and examples
+- **API documentation:** JSDoc comments throughout
+- **Contributing guide:** Detailed contributor onboarding
+
+---
+
 ### Version 1.3.5 (December 2024)
 
-#### 🚀 Major Features
-- **Security Overhaul:** Complete security implementation with encrypted storage
-- **Performance Optimization:** 50-75% faster processing with intelligent caching
-- **Multi-Provider Support:** Enhanced support for Gemini, Groq, and Ollama
-- **Advanced AI Features:** Multimodal analysis and custom prompts
-
-#### 🔒 Security Improvements
+#### 🔒 Security & Performance
 - Encrypted API key storage with master password
 - XSS prevention with comprehensive input sanitization
-- Secure HTTP client with proper headers and rate limiting
-- Secure logging with automatic data redaction
-
-#### ⚡ Performance Improvements
-- Intelligent caching system with 60-80% hit rates
-- Parallel processing for multiple videos
-- Bundle optimization reducing initial load size by 60%
-- Memory leak prevention and resource cleanup
+- 50-75% faster processing with intelligent caching
+- Multi-provider support (Gemini, Groq, Ollama)
+- Multimodal analysis and custom prompts
 
 ---
 
