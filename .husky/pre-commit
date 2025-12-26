@@ -1,6 +1,4 @@
 #!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
-
 # Run lint-staged to format and lint changed files
 npx lint-staged 2>/dev/null || echo "Lint-staged skipped"
 
