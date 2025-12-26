@@ -48,7 +48,7 @@ export interface UserPreferences {
 }
 
 export class UserPreferencesService {
-    private static readonly STORAGE_KEY = 'yt-clipper-user-preferences';
+    private static readonly STORAGE_KEY = 'youtube-to-note-user-preferences';
     private static readonly DEFAULT_PREFERENCES: UserPreferences = {
         autoSelectProvider: true,
         showPreview: true,

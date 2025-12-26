@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the YT Clipper plugin will be documented in this file.
+All notable changes to the YouTube to Note plugin will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🎉 Major Release - Enterprise-Grade Enhancement
 
-This release includes all 62 planned improvements, transforming YT Clipper into a production-ready, enterprise-grade application.
+This release includes all 62 planned improvements, transforming YouTube to Note into a production-ready, enterprise-grade application.
 
 ### ✨ Added
 
@@ -164,7 +164,7 @@ This release includes all 62 planned improvements, transforming YT Clipper into 
 
 ## Support
 
-For bug reports and feature requests, please visit [GitHub Issues](https://github.com/emeeran/yt-clipper/issues).
+For bug reports and feature requests, please visit [GitHub Issues](https://github.com/emeeran/youtube-to-note/issues).
 
 ## Contributors
 

@@ -1,14 +1,14 @@
-# YouTube Clipper - Obsidian Plugin
+# YouTube to Note - Obsidian Plugin
 
-> 🎬 **Clip YouTube videos and generate structured notes in Obsidian with AI-powered analysis**
+> 🎬 **Transform YouTube videos into structured notes in Obsidian with AI-powered analysis**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/emeeran/yt-clipper)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/emeeran/youtube-to-note)
 [![Platform](https://img.shields.io/badge/platform-Obsidian-purple.svg)](https://obsidian.md/)
 
 ## 📖 Overview
 
-YouTube Clipper is a powerful Obsidian plugin that transforms YouTube videos into structured, actionable notes using advanced AI analysis. Whether you're creating educational content, research notes, or learning materials, this plugin automatically extracts key insights, generates summaries, and creates step-by-step tutorials from YouTube videos.
+YouTube to Note is a powerful Obsidian plugin that transforms YouTube videos into structured, actionable notes using advanced AI analysis. Whether you're creating educational content, research notes, or learning materials, this plugin automatically extracts key insights, generates summaries, and creates step-by-step tutorials from YouTube videos.
 
 ### ✨ Key Features
 
@@ -43,7 +43,7 @@ YouTube Clipper is a powerful Obsidian plugin that transforms YouTube videos int
 
 #### Method 2: Manual Installation
 
-1. Download the latest release from [GitHub Releases](https://github.com/meeransethi/youtube-clipper/releases)
+1. Download the latest release from [GitHub Releases](https://github.com/meeransethi/youtube-to-note/releases)
 2. Extract the ZIP file to your Obsidian vault's plugins folder
 3. Restart Obsidian
 4. Enable the plugin in **Settings → Community Plugins**
@@ -183,7 +183,7 @@ Process multiple videos efficiently:
 
 ```typescript
 // Using the API
-import { YouTubeClipperAPI } from 'youtube-clipper-api';
+import { YouTubeClipperAPI } from 'youtube-to-note-api';
 
 const clipper = new YouTubeClipperAPI();
 
@@ -346,8 +346,8 @@ graph TB
 
 ```bash
 # Clone the repository
-git clone https://github.com/meeransethi/youtube-clipper.git
-cd youtube-clipper
+git clone https://github.com/meeransethi/youtube-to-note.git
+cd youtube-to-note
 
 # Install dependencies
 npm install
@@ -365,7 +365,7 @@ npm test
 ### Project Structure
 
 ```
-youtube-clipper/
+youtube-to-note/
 ├── src/
 │   ├── main.ts                 # Plugin entry point
 │   ├── types.ts               # TypeScript interfaces
@@ -404,7 +404,7 @@ youtube-clipper/
 1. **Check Logs**: Open Developer Console (F12) for error messages
 2. **Verify Configuration**: Double-check API keys and settings
 3. **Test Providers**: Use built-in provider testing feature
-4. **Community Support**: Visit [GitHub Discussions](https://github.com/meeransethi/youtube-clipper/discussions)
+4. **Community Support**: Visit [GitHub Discussions](https://github.com/meeransethi/youtube-to-note/discussions)
 
 ---
 
@@ -414,7 +414,7 @@ youtube-clipper/
 
 #### 🎉 Major Enterprise Release
 
-This comprehensive update includes **62 major improvements**, transforming YT Clipper into a production-ready, enterprise-grade application.
+This comprehensive update includes **62 major improvements**, transforming YouTube to Note into a production-ready, enterprise-grade application.
 
 ##### 🚀 New Features
 - **Settings UI Overhaul:** Provider status dashboard, search bar (Ctrl+K), quick actions panel
@@ -503,6 +503,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Made with ❤️ by the YouTube Clipper Team**
 
-[![Star on GitHub](https://img.shields.io/github/stars/meeransethi/youtube-clipper.svg?style=social&label=Star)](https://github.com/meeransethi/youtube-clipper)
+[![Star on GitHub](https://img.shields.io/github/stars/meeransethi/youtube-to-note.svg?style=social&label=Star)](https://github.com/meeransethi/youtube-to-note)
 
 </div>
