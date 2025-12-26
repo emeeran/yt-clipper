@@ -246,7 +246,7 @@ IMPORTANT INSTRUCTIONS:
         **Final Check:** [How to verify complete success]
         **Expected Result:** [What you should see/accomplish]
 
-              *Generated from YouTube video content*`}processAIResponse(t,e,r,i){if(!t)return t;let s=e||"unknown",n=r||"unknown",o=t.replace(/__AI_PROVIDER__/g,s).replace(/__AI_MODEL__/g,n);return o=this.ensureFrontMatterValue(o,"ai_provider",s),o=this.ensureFrontMatterValue(o,"ai_model",n),o}ensureFrontMatterValue(t,e,r){let i=new RegExp(`(${e}\\s*:\\s*)(["'])?([^"'\\n]*)(["'])?`,"i");return i.test(t)?t.replace(i,(s,n,o,a,c)=>{let u=o||c?'"':"";return`${n}${u}${r}${u}`}):t.startsWith("---")?t.replace(/^---\s*\n/,`---
+              *Generated from YouTube video content*`}processAIResponse(t,e,r,i){if(!t)return t;let s=e||"unknown",n=r||"unknown",o=t.replace(/__AI_PROVIDER__/g,s).replace(/__AI_MODEL__/g,n);return o=this.ensureFrontMatterValue(o,"ai_provider",s),o=this.ensureFrontMatterValue(o,"ai_model",n),o}ensureFrontMatterValue(t,e,r){let i=new RegExp(`(${e}\\s*:\\s*)(["'])?([^"'\\n]*)(["'])?`,"i");return i.test(t)?t.replace(i,(s,n,o,a,c)=>{let d=o||c?'"':"";return`${n}${d}${r}${d}`}):t.startsWith("---")?t.replace(/^---\s*\n/,`---
 ${e}: "${r}"
 `):t}createSummaryPrompt(t,e){return`Create a concise summary for this YouTube video:
 
@@ -294,7 +294,7 @@ For best results:
 
 Existing note: ${this.file.path}`),this.createButtons()}openAndWait(){return new Promise(e=>{this.resolve=e,this.forceVisible(),this.open()})}onClose(){this.resolve&&this.resolve(this.decision),super.onClose()}createButtons(){let e=this.createButtonContainer();this.createButton(e,"Cancel",!1,()=>{this.closeWithDecision("cancel")}),this.createButton(e,"Save as Numbered Copy",!1,()=>{this.closeWithDecision("new-name")}),this.createButton(e,"Overwrite Existing",!0,()=>{this.closeWithDecision("overwrite")})}closeWithDecision(e){this.decision=e,this.close()}};A();A();var ve=require("obsidian"),ye=class{constructor(t){this.app=t}async saveToFile(t,e,r){try{let i=this.createSafeFilename(t),s=this.normalizePath(r);await this.ensureDirectoryExists(s);let n=this.getDailyFolderPath(s);await this.ensureDirectoryExists(n);let o=`${n}/${i}`;return await this.handleFileConflicts(o,e)}catch(i){throw new Error(f.ERRORS.SAVE_FILE(i.message))}}async openFileWithConfirmation(t){await this.waitForFileCreation();try{let e=this.app.vault.getAbstractFileByPath(t.path);if(!(e instanceof ve.TFile))throw new Error(f.ERRORS.FILE_NOT_EXISTS);await this.app.workspace.getLeaf(!1).openFile(e)}catch(e){throw new Error(f.ERRORS.COULD_NOT_OPEN(e.message))}}createSafeFilename(t){return`${v.sanitizeFilename(t)}.md`}async ensureDirectoryExists(t){try{await this.app.vault.createFolder(t)}catch(e){}}getDailyFolderPath(t){let e=t.replace(/\/+$/,""),r=new Date().toISOString().split("T")[0];return`${e}/${r}`}async handleFileConflicts(t,e){let r=this.app.vault.getAbstractFileByPath(t);if(r instanceof ve.TFile)switch(await this.promptConflictResolution(r)){case"overwrite":return await this.app.vault.modify(r,e),r.path;case"new-name":return this.createVersionedCopy(r.path,e);default:throw new Error("Save cancelled by user")}return await this.app.vault.create(t,e),t}async waitForFileCreation(){return new Promise(t=>setTimeout(t,J.FILE_CREATION_WAIT))}getFileByPath(t){let e=this.app.vault.getAbstractFileByPath(t);return e instanceof ve.TFile?e:null}fileExists(t){return this.getFileByPath(t)!==null}async createUniqueFile(t,e){let r=1,i=t;for(;this.fileExists(i);){let s=t.split("/"),a=`${s.pop().replace(".md","")} (${r}).md`;i=[...s,a].join("/"),r++}return await this.app.vault.create(i,e),i}async promptConflictResolution(t){return await new fe(this.app,t).openAndWait()}async createVersionedCopy(t,e){let r=t.split("/"),s=r.pop().replace(".md",""),n=1,o;do o=[...r,`${s} (${n}).md`].join("/"),n++;while(this.fileExists(o));return await this.app.vault.create(o,e),o}normalizePath(t){if(!t)return"";let e=t.trim();for(e.startsWith("./")&&(e=e.slice(2));e.startsWith("/");)e=e.slice(1);return e=e.replace(/\/+/g,"/"),e}};var be=class extends O{constructor(e="",r,i,s){super(e,r||"llama3.2",i);this.name="Ollama";s?s.includes("ollama.com")||s.includes("cloud")?this.apiBaseUrl="https://ollama.com/api":s.endsWith("/api")?this.apiBaseUrl=s:this.apiBaseUrl=`${s}/api`:this.apiBaseUrl="http://localhost:11434/api"}getApiUrl(e){return`${this.apiBaseUrl}${e}`}async process(e){try{if(!e||e.trim().length===0)throw new Error("Prompt cannot be empty");let r={model:this._model,prompt:e,stream:!1,options:{temperature:this._temperature,num_predict:this._maxTokens}},i=await fetch(this.getApiUrl("/generate"),{method:"POST",headers:this.createHeaders(),body:JSON.stringify(r)});if(!i.ok){if(i.status===404)throw(this._model.includes("-cloud")||this._model.includes(":cloud"))&&!this.apiBaseUrl.includes("ollama.com")?new Error(`Cloud model "${this._model}" requires Ollama Cloud configuration. Either:
 1. Switch to a local model (e.g., "llama3.2:latest")
-2. Configure Ollama Cloud in settings with endpoint "https://ollama.com" and your API key`):new Error(`Ollama model not found: ${this._model}. Please make sure the model is pulled in Ollama using 'ollama pull ${this._model}'.`);if(i.status===401)throw this._model.includes("-cloud")||this._model.includes(":cloud")?new Error(`Cloud model "${this._model}" requires authentication. Please configure your Ollama Cloud API key in plugin settings (get it from https://ollama.com/settings)`):new Error("Ollama authentication failed. Check if your Ollama instance requires authentication.");if(i.status===500){let n=await this.safeJsonParse(i),o=(n==null?void 0:n.error)||"Ollama server error";throw new Error(`Ollama error: ${o}`)}throw new Error(`Ollama API error: ${i.status} - ${i.statusText}`)}let s=await i.json();if(!this.validateResponse(s,["response"]))throw new Error("Invalid response format from Ollama API");return this.extractContent(s)}catch(r){throw r instanceof Error?r.message.includes("fetch")||r.message.includes("network")||r.message.includes("ECONNREFUSED")||r.message.includes("ENOTFOUND")?new Error("Ollama server is not running or unreachable. Please ensure Ollama is installed and running on your system."):r:new Error(`Ollama processing failed: ${r}`)}}async processWithImage(e,r){try{if(!e||e.trim().length===0)throw new Error("Prompt cannot be empty");let i=[{role:"user",content:e}];if(r&&r.length>0){let a=[];for(let c of r)if(typeof c=="string")a.push(c);else if(c instanceof ArrayBuffer){let u=new Uint8Array(c),h="";for(let g=0;g<u.length;g++)h+=String.fromCharCode(u[g]);let d=btoa(h);a.push(d)}a.length>0&&(i[0].images=a)}let s={model:this._model,messages:i,stream:!1,options:{temperature:this._temperature,num_predict:this._maxTokens}},n=await fetch(this.getApiUrl("/chat"),{method:"POST",headers:this.createHeaders(),body:JSON.stringify(s)});if(!n.ok){if(n.status===404)throw(this._model.includes("-cloud")||this._model.includes(":cloud"))&&!this.apiBaseUrl.includes("ollama.com")?new Error(`Cloud model "${this._model}" requires Ollama Cloud configuration. Either:
+2. Configure Ollama Cloud in settings with endpoint "https://ollama.com" and your API key`):new Error(`Ollama model not found: ${this._model}. Please make sure the model is pulled in Ollama using 'ollama pull ${this._model}'.`);if(i.status===401)throw this._model.includes("-cloud")||this._model.includes(":cloud")?new Error(`Cloud model "${this._model}" requires authentication. Please configure your Ollama Cloud API key in plugin settings (get it from https://ollama.com/settings)`):new Error("Ollama authentication failed. Check if your Ollama instance requires authentication.");if(i.status===500){let n=await this.safeJsonParse(i),o=(n==null?void 0:n.error)||"Ollama server error";throw new Error(`Ollama error: ${o}`)}throw new Error(`Ollama API error: ${i.status} - ${i.statusText}`)}let s=await i.json();if(!this.validateResponse(s,["response"]))throw new Error("Invalid response format from Ollama API");return this.extractContent(s)}catch(r){throw r instanceof Error?r.message.includes("fetch")||r.message.includes("network")||r.message.includes("ECONNREFUSED")||r.message.includes("ENOTFOUND")?new Error("Ollama server is not running or unreachable. Please ensure Ollama is installed and running on your system."):r:new Error(`Ollama processing failed: ${r}`)}}async processWithImage(e,r){try{if(!e||e.trim().length===0)throw new Error("Prompt cannot be empty");let i=[{role:"user",content:e}];if(r&&r.length>0){let a=[];for(let c of r)if(typeof c=="string")a.push(c);else if(c instanceof ArrayBuffer){let d=new Uint8Array(c),h="";for(let g=0;g<d.length;g++)h+=String.fromCharCode(d[g]);let p=btoa(h);a.push(p)}a.length>0&&(i[0].images=a)}let s={model:this._model,messages:i,stream:!1,options:{temperature:this._temperature,num_predict:this._maxTokens}},n=await fetch(this.getApiUrl("/chat"),{method:"POST",headers:this.createHeaders(),body:JSON.stringify(s)});if(!n.ok){if(n.status===404)throw(this._model.includes("-cloud")||this._model.includes(":cloud"))&&!this.apiBaseUrl.includes("ollama.com")?new Error(`Cloud model "${this._model}" requires Ollama Cloud configuration. Either:
 1. Switch to a local model (e.g., "llama3.2:latest")
 2. Configure Ollama Cloud in settings with endpoint "https://ollama.com" and your API key`):new Error(`Ollama model not found: ${this._model}. Please make sure the model is pulled in Ollama using 'ollama pull ${this._model}'.`);if(n.status===401)throw this._model.includes("-cloud")||this._model.includes(":cloud")?new Error(`Cloud model "${this._model}" requires authentication. Please configure your Ollama Cloud API key in plugin settings (get it from https://ollama.com/settings)`):new Error("Ollama authentication failed. Check if your Ollama instance requires authentication.");if(n.status===500){let a=await this.safeJsonParse(n),c=(a==null?void 0:a.error)||"Ollama server error";throw new Error(`Ollama error: ${c}`)}throw new Error(`Ollama API error: ${n.status} - ${n.statusText}`)}let o=await n.json();if(!this.validateResponse(o,["message","content"]))throw new Error("Invalid response format from Ollama API");return this.extractContentFromChat(o)}catch(i){throw i instanceof Error?i.message.includes("fetch")||i.message.includes("network")||i.message.includes("ECONNREFUSED")||i.message.includes("ENOTFOUND")?new Error("Ollama server is not running or unreachable. Please ensure Ollama is installed and running on your system."):i:new Error(`Ollama processing failed: ${i}`)}}async checkAvailability(){try{return(await fetch(this.getApiUrl("/tags"),{method:"GET",headers:this.createHeaders()})).ok}catch(e){return!1}}async checkModelAvailability(e){try{let r=await fetch(this.getApiUrl("/tags"),{method:"GET",headers:this.createHeaders()});if(!r.ok)return!1;let i=await r.json();return!i||!i.models?!1:i.models.some(s=>s.name===e||s.name.startsWith(`${e}:`)||s.id&&s.id.includes(e))}catch(r){return!1}}createHeaders(){let e={"Content-Type":"application/json"};return this.apiKey&&(e.Authorization=`Bearer ${this.apiKey}`),e}createRequestBody(e){return{}}extractContent(e){return e&&typeof e=="object"&&"response"in e?e.response.trim():""}extractContentFromChat(e){return e&&typeof e=="object"&&e.message&&"content"in e.message?e.message.content.trim():""}};var pt="https://openrouter.ai/api/v1/chat/completions";function mt(l){let t=l.match(/retry in ([\d.]+)/i)||l.match(/(\d+)\s*seconds?/i),e=t?` Retry in ${Math.ceil(parseFloat(t[1]))}s.`:"";return l.toLowerCase().includes("rate limit")?`OpenRouter rate limit reached.${e}`:l.toLowerCase().includes("insufficient")||l.toLowerCase().includes("credits")?"OpenRouter credits exhausted. Add credits at openrouter.ai/credits":l.toLowerCase().includes("quota")?`OpenRouter quota exceeded.${e}`:`OpenRouter API error.${e}`}var Ee=class extends O{constructor(e,r,i){super(e,r||"meta-llama/llama-3.1-8b-instruct:free",i);this.name="OpenRouter";this.siteUrl="https://github.com/user/yt-clipper",this.siteName="YouTube Clipper Obsidian Plugin"}async process(e){var r;try{if(!this.apiKey||this.apiKey.trim().length===0)throw new Error("OpenRouter API key is required. Get one at openrouter.ai/keys");let i=await fetch(pt,{method:"POST",headers:this.createHeaders(),body:JSON.stringify(this.createRequestBody(e))});if(i.status===401)throw new Error("OpenRouter API key is invalid. Please check your key at openrouter.ai/keys");if(i.status===402)throw new Error("OpenRouter credits exhausted. Add credits at openrouter.ai/credits");if(i.status===403)throw new Error("OpenRouter access denied. Your key may not have access to this model.");if(i.status===429){let n=await this.safeJsonParse(i),o=((r=n==null?void 0:n.error)==null?void 0:r.message)||"";throw new Error(mt(o))}i.ok||await this.handleAPIError(i);let s=await i.json();if(!this.validateResponse(s,["choices","0","message","content"]))throw new Error("Invalid response format from OpenRouter API");return this.extractContent(s)}catch(i){throw i instanceof Error?i:new Error(`OpenRouter processing failed: ${i}`)}}createHeaders(){return{Authorization:`Bearer ${this.apiKey}`,"Content-Type":"application/json","HTTP-Referer":this.siteUrl,"X-Title":this.siteName}}createRequestBody(e){return{model:this._model,messages:[{role:"system",content:"You are an expert content analyzer specializing in extracting practical value and creating actionable guides from video content. Focus on clarity, practicality, and immediate implementability."},{role:"user",content:e}],max_tokens:this._maxTokens,temperature:this._temperature}}extractContent(e){let r=e.choices[0].message.content;return r?r.trim():""}};j();A();j();var ht={namespace:"ytc",maxItems:100,defaultTTL:864e5,version:1},Pe=class{constructor(t={}){this.metrics={hits:0,misses:0,evictions:0,size:0,hitRate:0};this.config={...ht,...t},this.indexKey=`${this.config.namespace}-index`,this.initializeIndex(),this.cleanupExpired()}initializeIndex(){try{localStorage.getItem(this.indexKey)||localStorage.setItem(this.indexKey,JSON.stringify([])),this.metrics.size=this.getIndex().length}catch(t){}}getIndex(){try{let t=localStorage.getItem(this.indexKey);return t?JSON.parse(t):[]}catch(t){return[]}}updateIndex(t){try{localStorage.setItem(this.indexKey,JSON.stringify(t)),this.metrics.size=t.length}catch(e){}}getStorageKey(t){return`${this.config.namespace}-${t}`}get(t){try{let e=this.getStorageKey(t),r=localStorage.getItem(e);if(!r)return this.metrics.misses++,this.updateHitRate(),null;let i=JSON.parse(r);return i.version!==this.config.version?(this.delete(t),this.metrics.misses++,this.updateHitRate(),null):Date.now()-i.timestamp>i.ttl?(this.delete(t),this.metrics.misses++,this.updateHitRate(),null):(this.metrics.hits++,this.updateHitRate(),i.data)}catch(e){return this.metrics.misses++,this.updateHitRate(),null}}set(t,e,r){try{let i=this.getIndex();for(;i.length>=this.config.maxItems;){let o=i.shift();o&&(localStorage.removeItem(this.getStorageKey(o)),this.metrics.evictions++)}let s=this.getStorageKey(t),n={data:e,timestamp:Date.now(),ttl:r!=null?r:this.config.defaultTTL,version:this.config.version};localStorage.setItem(s,JSON.stringify(n)),i.includes(t)||i.push(t),this.updateIndex(i)}catch(i){if(i.name==="QuotaExceededError"){this.evictOldest(10);try{this.set(t,e,r)}catch(s){}}}}delete(t){try{let e=this.getStorageKey(t),r=localStorage.getItem(e)!==null;if(r){localStorage.removeItem(e);let i=this.getIndex().filter(s=>s!==t);this.updateIndex(i)}return r}catch(e){return!1}}has(t){return this.get(t)!==null}clear(){try{this.getIndex().forEach(e=>{localStorage.removeItem(this.getStorageKey(e))}),this.updateIndex([]),this.metrics={hits:0,misses:0,evictions:0,size:0,hitRate:0}}catch(t){}}size(){return this.getIndex().length}getMetrics(){return{...this.metrics}}evictOldest(t){let e=this.getIndex();e.slice(0,t).forEach(i=>{localStorage.removeItem(this.getStorageKey(i)),this.metrics.evictions++}),this.updateIndex(e.slice(t))}cleanupExpired(){try{let t=this.getIndex(),e=Date.now(),r=[];t.forEach(i=>{let s=this.getStorageKey(i),n=localStorage.getItem(s);if(n)try{let o=JSON.parse(n);e-o.timestamp<=o.ttl&&o.version===this.config.version?r.push(i):localStorage.removeItem(s)}catch(o){localStorage.removeItem(s)}}),this.updateIndex(r)}catch(t){}}updateHitRate(){let t=this.metrics.hits+this.metrics.misses;this.metrics.hitRate=t>0?this.metrics.hits/t:0}getStorageStats(){let t=this.getIndex(),e=0;try{t.forEach(r=>{let i=localStorage.getItem(this.getStorageKey(r));i&&(e+=i.length*2)})}catch(r){}return{itemCount:t.length,estimatedBytes:e,maxItems:this.config.maxItems}}getCachedVideoIds(){return this.getIndex().filter(t=>t.startsWith("transcript-")).map(t=>t.replace("transcript-",""))}},He=new Pe({namespace:"ytc-transcript",maxItems:50,defaultTTL:7*24*60*60*1e3}),Gr=new Pe({namespace:"ytc-metadata",maxItems:200,defaultTTL:24*60*60*1e3});var we=class{constructor(t){this.cache=t;this.transcriptTTL=1e3*60*60*24*7}async getTranscript(t){var s,n,o;if(!t)throw new Error("Video ID is required");let e=`transcript-${t}`,r=(s=this.cache)==null?void 0:s.get(e);if(r)return r;let i=He.get(t);if(i)return(n=this.cache)==null||n.set(e,i,this.transcriptTTL),i;try{let a=await this.fetchTranscriptWithFallback(t);return a?((o=this.cache)==null||o.set(e,a,this.transcriptTTL),He.set(t,a,this.transcriptTTL),a):null}catch(a){return null}}async fetchTranscriptWithFallback(t){try{let e=await this.fetchFromYouTubeAPI(t);if(e)return e}catch(e){}try{let e=await this.scrapeTranscriptFromPage(t);if(e)return e}catch(e){}try{let e=await this.fetchFromThirdParty(t);if(e)return e}catch(e){}return null}async fetchFromYouTubeAPI(t){let e=`https://video.google.com/timedtext?lang=en&v=${t}`,r=await fetch(e);if(!r.ok)throw new Error(`Transcript API failed: ${r.status}`);let i=await r.text();return this.parseXMLTranscript(i,t)}async scrapeTranscriptFromPage(t){let e=`https://www.youtube.com/watch?v=${t}`,r=`${$.CORS_PROXY}?url=${encodeURIComponent(e)}`,i=await fetch(r);if(!i.ok)throw new Error("Failed to fetch video page");let s=await i.text(),n=await this.extractTranscriptFromHTML(s);return n?this.createTranscript(n,t,!0):null}async fetchFromThirdParty(t){return null}parseXMLTranscript(t,e){let s=new DOMParser().parseFromString(t,"text/xml").getElementsByTagName("text"),n=[],o="";for(let a=0;a<s.length;a++){let c=s[a];if(!c)continue;let d=c.textContent||"",h=parseFloat(c.getAttribute("start")||"0"),p=parseFloat(c.getAttribute("dur")||"0");d.trim()&&(n.push({text:d.trim(),start:h,duration:p}),o+=d.trim()+" ")}return{segments:n,fullText:o.trim(),language:"en",autoGenerated:!0}}async extractTranscriptFromHTML(t){let e=/"captions":\s*{[^}]*"playerCaptionsTracklistRenderer":\s*{[^}]*"captionTracks":\s*\[([^\]]+)\]/,r=t.match(e);if(!r||!r[1])return null;try{let i=r[1],n=JSON.parse(`[${i}]`).find(o=>{var a;return o.languageCode==="en"||((a=o.languageCode)==null?void 0:a.startsWith("en"))});return!n||!n.baseUrl?null:fetch(n.baseUrl).then(o=>{if(!o.ok)throw new Error("Failed to fetch caption track");return o.text()}).then(o=>this.parseXMLTranscript(o,"").segments).catch(o=>null)}catch(i){return null}}createTranscript(t,e,r=!1){Array.isArray(t)||(t=[t]);let i=t.map(n=>({text:n.text,start:n.start,duration:n.duration||0})),s=i.map(n=>n.text).join(" ").trim();return{segments:i,fullText:s,language:"en",autoGenerated:r}}async getTranscriptSummary(t,e=2e3){let r=await this.getTranscript(t);if(!r)return null;if(r.fullText.length<=e)return r.fullText;let i=r.segments.filter(s=>s.text.length>20).slice(0,10).map(s=>s.text).join(" ");return i.length>e?i.substring(0,e)+"...":i}async extractKeyMoments(t,e=5){let r=await this.getTranscript(t);if(!r||r.segments.length===0)return null;let i=r.segments.filter(a=>a.text.length>30);if(i.length===0)return null;let s=i.length,n=Math.max(1,Math.floor(s/e)),o=[];for(let a=0;a<s&&o.length<e;a+=n){let c=i[a];c&&o.push({time:c.start,text:c.text})}return o}async isTranscriptAvailable(t){let e=await this.getTranscript(t);return e!==null&&e.segments.length>0}};var Te=class{constructor(t){this.cache=t;this.metadataTTL=1e3*60*30;this.descriptionTTL=1e3*60*30;this.transcriptService=new we(t)}async getTranscript(t){try{let e=await this.transcriptService.getTranscript(t);return e?{fullText:e.fullText}:null}catch(e){return null}}extractVideoId(t){return v.extractVideoId(t)}async getVideoData(t){var i,s;if(!t)throw new Error("Video ID is required");let e=this.getCacheKey("video-data",t),r=(i=this.cache)==null?void 0:i.get(e);if(r)return r;try{let n=await this.getVideoMetadata(t),o={title:n.title||"Unknown Title",description:n.description||"No description available",duration:n.duration,thumbnail:n.thumbnail,channelName:n.channelName};return o.duration&&o.duration<1800&&this.checkTranscriptAvailability(t).then(a=>{var c;o.hasTranscript=a,(c=this.cache)==null||c.set(e,o,this.metadataTTL)}),(s=this.cache)==null||s.set(e,o,this.metadataTTL),o}catch(n){throw S.createUserFriendlyError(n,"fetch video data")}}async getVideoMetadata(t){var s,n;let e=this.getCacheKey("metadata",t),r=(s=this.cache)==null?void 0:s.get(e);if(r)return r;let i=`${$.YOUTUBE_OEMBED}?url=https://www.youtube.com/watch?v=${t}&format=json`;try{let o=new AbortController,a=setTimeout(()=>o.abort(),1e4),c=await fetch(i,{headers:{"User-Agent":"Obsidian YoutubeClipper Plugin"},signal:o.signal});if(clearTimeout(a),!c.ok){if(c.status===400)throw new Error(`Invalid YouTube video ID: ${t}. Please check the URL and try again.`);if(c.status===401){console.warn(`YouTube oEmbed returned 401 for ${t}, attempting fallback...`);try{let g=await this.scrapeAdditionalMetadata(t);if(g.description||g.duration)return{title:`YouTube Video (${t})`,description:g.description,duration:g.duration,thumbnail:`https://img.youtube.com/vi/${t}/maxresdefault.jpg`,channelName:void 0}}catch(g){}return{title:`YouTube Video (${t})`,description:`Video URL: https://www.youtube.com/watch?v=${t}`,duration:void 0,thumbnail:`https://img.youtube.com/vi/${t}/maxresdefault.jpg`,channelName:void 0}}else throw c.status===404?new Error(`YouTube video not found: ${t}. The video may be private, deleted, or the ID is incorrect.`):c.status===403?new Error(`Access denied to YouTube video: ${t}. The video may be private or restricted.`):new Error(f.ERRORS.FETCH_VIDEO_DATA(c.status))}let d=await c.json(),h={title:d.title||"Unknown Title",thumbnail:d.thumbnail_url,author_name:d.author_name};try{let g=await this.scrapeAdditionalMetadata(t);h={...h,...g}}catch(g){}let p={title:h.title,description:h.description,duration:h.duration,thumbnail:h.thumbnail,channelName:h.author_name};return(n=this.cache)==null||n.set(e,p,this.metadataTTL),p}catch(o){throw o instanceof DOMException&&o.name==="AbortError"?new Error("Request timed out. Please check your internet connection and try again."):o instanceof TypeError?new Error(f.ERRORS.NETWORK_ERROR):o instanceof Error&&o.message.includes("JSON")?new Error("Failed to parse YouTube response. The service may be temporarily unavailable."):o}}async scrapeAdditionalMetadata(t){try{let e=await this.fetchVideoPageHTML(t),r=e.match(/"lengthSeconds":"(\d+)"/),i=r!=null&&r[1]?parseInt(r[1]):void 0,s=e.match(/"shortDescription":"([^"]+)"/);return{description:s!=null&&s[1]?s[1].replace(/\\u0026/g,"&").replace(/\\n/g,`
 `):void 0,duration:i}}catch(e){return{}}}async checkTranscriptAvailability(t){try{return await this.transcriptService.isTranscriptAvailable(t)}catch(e){return!1}}async getVideoDescription(t){var i,s,n;let e=this.getCacheKey("description",t),r=(i=this.cache)==null?void 0:i.get(e);if(r)return r;try{let o=await this.fetchVideoPageHTML(t),a=this.extractDescriptionFromHTML(o);return(s=this.cache)==null||s.set(e,a,this.descriptionTTL),a}catch(o){let a=f.WARNINGS.EXTRACTION_FAILED;return(n=this.cache)==null||n.set(e,a,this.descriptionTTL),a}}async fetchVideoPageHTML(t){let e=`https://www.youtube.com/watch?v=${t}`,r=`${$.CORS_PROXY}?url=${encodeURIComponent(e)}`,i=await fetch(r);if(!i.ok)throw new Error(f.WARNINGS.CORS_RESTRICTIONS);return i.text()}extractDescriptionFromHTML(t){let e=[/"shortDescription":"([^"]*?)"/,/"description":{"simpleText":"([^"]*?)"}/,/<meta name="description" content="([^"]*?)">/,/<meta property="og:description" content="([^"]*?)">/];for(let r of e){let i=t.match(r);if(i&&i[1]){let s=v.cleanText(i[1]);return v.truncateText(s,Ye.DESCRIPTION_MAX_LENGTH)}}return f.WARNINGS.AUTO_EXTRACTION}validateAndExtractVideoId(t){if(!v.isValidYouTubeUrl(t))throw new Error(f.ERRORS.INVALID_URL);let e=this.extractVideoId(t);if(!e)throw new Error(f.ERRORS.INVALID_URL);return e}getCacheKey(t,e){return`youtube-video-service:${t}:${e}`}};var ee=class{constructor(t,e){this.settings=t;this.app=e;this.serviceMetrics=new Map;this.SERVICE_TTL=5*60*1e3;this.setupPeriodicCleanup(),this.trackMemoryUsage()}get aiService(){return this.getService("aiService",()=>{let t=performance.now(),e=[];this.settings.geminiApiKey&&e.push(new pe(this.settings.geminiApiKey)),this.settings.groqApiKey&&e.push(new me(this.settings.groqApiKey)),this.settings.huggingFaceApiKey&&e.push(new he(this.settings.huggingFaceApiKey)),this.settings.openRouterApiKey&&e.push(new Ee(this.settings.openRouterApiKey)),e.push(new be(this.settings.ollamaApiKey||"",void 0,void 0,this.settings.ollamaEndpoint||"http://localhost:11434"));let r=new ue(e,this.settings);return this.recordServiceMetrics("aiService",performance.now()-t),r})}get videoService(){return this.getService("videoService",()=>{let t=performance.now(),e=new Te(this.cacheService);return this.recordServiceMetrics("videoService",performance.now()-t),e})}get fileService(){return this.getService("fileService",()=>{let t=performance.now(),e=new ye(this.app);return this.recordServiceMetrics("fileService",performance.now()-t),e})}get cacheService(){return this.getService("cacheService",()=>{let t=performance.now(),e=new ge;return this.recordServiceMetrics("cacheService",performance.now()-t),e})}get promptService(){return this.getService("promptService",()=>{let t=performance.now(),e=new ne;return this.recordServiceMetrics("promptService",performance.now()-t),e})}getService(t,e){let r=`_${t}`,i=this[r];if(i){let o=this.serviceMetrics.get(t);return o&&(o.lastUsed=Date.now(),o.usageCount++),i}let s=performance.now(),n=e();return this[r]=n,_.trackOperation("ServiceContainer",`getService-${t}`,performance.now()-s,!0,{serviceName:t}),n}recordServiceMetrics(t,e){this.serviceMetrics.set(t,{creationTime:e,lastUsed:Date.now(),usageCount:0})}setupPeriodicCleanup(){this.cleanupInterval=setInterval(()=>{this.performCleanup()},2*60*1e3)}performCleanup(){let t=Date.now(),e=[];this.serviceMetrics.forEach((r,i)=>{t-r.lastUsed>this.SERVICE_TTL&&e.push(i)}),e.forEach(r=>{this.clearService(r),this.serviceMetrics.delete(r)}),this.isMemoryUsageHigh()&&this.performAggressiveCleanup()}clearService(t){let e=`_${t}`,r=this[e];if(r&&typeof r.cleanup=="function")try{r.cleanup()}catch(i){console.warn(`Error during cleanup of ${t}:`,i)}this[e]=void 0}isMemoryUsageHigh(){if(performance.memory){let t=performance.memory.usedJSHeapSize,e=performance.memory.jsHeapSizeLimit;return t/e>.8}return!1}performAggressiveCleanup(){console.warn("High memory usage detected, performing aggressive cleanup");let t=Array.from(this.serviceMetrics.entries()).sort((r,i)=>i[1].lastUsed-r[1].lastUsed),[e]=t;this.serviceMetrics.forEach((r,i)=>{i!==(e==null?void 0:e[0])&&this.clearService(i)}),this.serviceMetrics.clear(),e&&this.serviceMetrics.set(e[0],e[1]),window.gc&&window.gc()}trackMemoryUsage(){setInterval(()=>{if(performance.memory){let t=performance.memory,e=Math.round(t.usedJSHeapSize/1024/1024),r=Math.round(t.jsHeapSizeLimit/1024/1024);e>50&&`${e}${r}`}},60*1e3)}async updateSettings(t){this.settings=t,this.clearService("aiService"),this.serviceMetrics.delete("aiService"),this.clearService("videoService"),this.serviceMetrics.delete("videoService")}clearServices(){Object.keys(this.serviceMetrics).forEach(t=>{this.clearService(t)}),this._aiService=void 0,this._videoService=void 0,this._fileService=void 0,this._cacheService=void 0,this._promptService=void 0,this.serviceMetrics.clear()}getServiceMetrics(){let t={};return this.serviceMetrics.forEach((e,r)=>{t[r]={...e}}),t}getPerformanceReport(){let t=this.getServiceMetrics(),e=_.generateReport(),r=this._aiService;r&&typeof r.getPerformanceMetrics=="function"&&(e.services.aiService={...e.services.aiService,...r.getPerformanceMetrics()});let i=this._videoService;i&&typeof i.getPerformanceMetrics=="function"&&(e.services.videoService={...e.services.videoService,...i.getPerformanceMetrics()});let s=this._cacheService;return s&&typeof s.getMetrics=="function"&&(e.systemMetrics.cacheMetrics=s.getMetrics()),{...e,containerMetrics:{uptime:_.getUptime(),services:Object.keys(t),memoryUsage:this.isMemoryUsageHigh()}}}cleanup(){this.cleanupInterval&&clearInterval(this.cleanupInterval),this._aiService&&typeof this._aiService.cleanup=="function"&&this._aiService.cleanup(),this._videoService&&typeof this._videoService.cleanup=="function"&&this._videoService.cleanup(),this._cacheService&&typeof this._cacheService.destroy=="function"&&this._cacheService.destroy(),this.clearServices(),_.clearMetrics()}};var xe=class{constructor(t,e,r,i={noteMarker:"<!-- ytc-extension:youtube-clipper -->",urlHandlerDelay:500,maxHandledFiles:100,tempFileAgeThreshold:5e3}){this.app=t;this.settings=e;this.onUrlDetected=r;this.config=i;this.handledTempFiles=new Set;this.pendingUrls=new Map}isTempFile(t,e){var r;try{if(e&&e.includes(this.config.noteMarker))return u.debug("File identified as temp file via marker","UrlHandler",{filePath:t.path,hasMarker:!0}),!0;if(t.name&&t.name.startsWith("YouTube Clip -"))return u.debug("File identified as temp file via name","UrlHandler",{filePath:t.path,fileName:t.name}),!0;let s=e.trim().split(`
@@ -321,26 +321,26 @@ ${t}_GROQ_API_KEY=your_groq_api_key_here
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                padding: 6px 10px;
-                margin-bottom: 8px;
-                background: var(--background-secondary);
-                border-radius: 6px;
+                padding: 16px 20px;
+                margin-bottom: 24px;
+                background: linear-gradient(135deg, var(--background-secondary) 0%, var(--background-secondary-alt) 100%);
+                border-radius: 12px;
                 border: 1px solid var(--background-modifier-border);
             }
 
             .${m}-title {
                 margin: 0;
-                font-size: 0.95rem;
-                font-weight: 600;
+                font-size: 1.5rem;
+                font-weight: 700;
                 display: flex;
                 align-items: center;
-                gap: 4px;
+                gap: 10px;
             }
 
             .${m}-badge {
-                padding: 2px 8px;
-                border-radius: 10px;
-                font-size: 0.65rem;
+                padding: 6px 14px;
+                border-radius: 20px;
+                font-size: 0.8rem;
                 font-weight: 600;
             }
 
@@ -354,192 +354,237 @@ ${t}_GROQ_API_KEY=your_groq_api_key_here
                 color: white;
             }
 
-            /* Tabs */
-            .${m}-tabs {
-                display: flex;
-                gap: 2px;
-                margin-bottom: 8px;
-                padding: 4px;
+            .${m}-section {
+                margin-bottom: 24px;
+                padding: 20px;
                 background: var(--background-secondary);
-                border-radius: 6px;
-                border: 1px solid var(--background-modifier-border);
-                overflow-x: auto;
-            }
-
-            .${m}-tab {
-                flex: 1;
-                padding: 6px 8px;
-                border: none;
-                background: transparent;
-                color: var(--text-muted);
-                font-size: 0.7rem;
-                font-weight: 500;
-                cursor: pointer;
-                border-radius: 4px;
-                transition: all 0.15s ease;
-                white-space: nowrap;
-            }
-
-            .${m}-tab:hover {
-                background: var(--background-modifier-hover);
-                color: var(--text-normal);
-            }
-
-            .${m}-tab.active {
-                background: var(--interactive-accent);
-                color: var(--text-on-accent);
-            }
-
-            .${m}-tab-content {
-                display: none;
-                padding: 8px;
-                background: var(--background-secondary);
-                border-radius: 6px;
-                border: 1px solid var(--background-modifier-border);
-                margin-bottom: 8px;
-            }
-
-            .${m}-tab-content.active {
-                display: block;
-            }
-
-            /* Compact Settings */
-            .${m}-setting-grid {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 8px;
-                margin-bottom: 8px;
-            }
-
-            .${m}-setting-item {
-                padding: 6px 8px;
-                background: var(--background-secondary);
-                border-radius: 6px;
+                border-radius: 12px;
                 border: 1px solid var(--background-modifier-border);
             }
 
-            .${m}-setting-item > .setting-item {
-                padding: 0;
-                border: none;
-            }
-
-            .${m}-setting-item .setting-item-info {
-                margin-bottom: 4px;
-            }
-
-            .${m}-setting-item .setting-item-name {
-                font-size: 0.75rem;
-                font-weight: 600;
-            }
-
-            .${m}-setting-item .setting-item-description {
-                font-size: 0.65rem;
-                color: var(--text-muted);
-                line-height: 1.3;
-            }
-
-            /* Sliders */
-            .${m}-slider-row {
+            .${m}-section-header {
                 display: flex;
                 align-items: center;
-                gap: 8px;
-                padding: 6px 8px;
-                background: var(--background-secondary);
-                border-radius: 6px;
-                border: 1px solid var(--background-modifier-border);
-                margin-bottom: 8px;
+                gap: 10px;
+                margin-bottom: 16px;
+                padding-bottom: 12px;
+                border-bottom: 1px solid var(--background-modifier-border);
             }
 
-            .${m}-slider-label {
-                flex: 0 0 90px;
-                font-size: 0.7rem;
+            .${m}-section-icon {
+                font-size: 1.3rem;
+            }
+
+            .${m}-section-title {
+                margin: 0;
+                font-size: 1.1rem;
                 font-weight: 600;
-                color: var(--text-normal);
             }
 
             .${m}-slider-wrap {
-                flex: 1;
+                margin: 16px 0;
+                padding: 12px;
+                background: var(--background-primary);
+                border-radius: 8px;
+            }
+
+            .${m}-slider-top {
                 display: flex;
+                justify-content: space-between;
                 align-items: center;
-                gap: 8px;
+                margin-bottom: 10px;
+            }
+
+            .${m}-slider-label {
+                font-weight: 600;
+                font-size: 0.95rem;
+            }
+
+            .${m}-slider-value {
+                background: var(--interactive-accent);
+                color: var(--text-on-accent);
+                padding: 4px 12px;
+                border-radius: 6px;
+                font-weight: 600;
+                font-size: 0.85rem;
+                min-width: 60px;
+                text-align: center;
+            }
+
+            .${m}-slider-desc {
+                font-size: 0.8rem;
+                color: var(--text-muted);
+                margin-top: 8px;
             }
 
             .${m}-slider {
-                flex: 1;
-                height: 4px;
-                border-radius: 2px;
+                width: 100%;
+                height: 8px;
+                border-radius: 4px;
                 background: var(--background-modifier-border);
                 -webkit-appearance: none;
                 appearance: none;
+                cursor: pointer;
             }
 
             .${m}-slider::-webkit-slider-thumb {
                 -webkit-appearance: none;
-                width: 12px;
-                height: 12px;
+                width: 20px;
+                height: 20px;
                 background: var(--interactive-accent);
                 border-radius: 50%;
                 cursor: pointer;
-                border: 2px solid var(--background-primary);
+                border: 3px solid var(--background-primary);
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
             }
 
             .${m}-slider::-moz-range-thumb {
-                width: 12px;
-                height: 12px;
+                width: 20px;
+                height: 20px;
                 background: var(--interactive-accent);
                 border-radius: 50%;
                 cursor: pointer;
-                border: 2px solid var(--background-primary);
+                border: 3px solid var(--background-primary);
             }
 
-            .${m}-slider-value {
-                flex: 0 0 45px;
-                text-align: right;
-                font-size: 0.65rem;
-                font-weight: 600;
-                color: var(--interactive-accent);
-            }
-
-            /* API Key Input */
-            .${m}-api-row {
+            .${m}-slider-scale {
                 display: flex;
-                gap: 6px;
-                align-items: center;
-            }
-
-            .${m}-api-row input[type="password"] {
-                flex: 1;
-                padding: 6px 8px;
+                justify-content: space-between;
                 font-size: 0.75rem;
-                border: 1px solid var(--background-modifier-border);
-                border-radius: 4px;
-                background: var(--background-primary);
-                color: var(--text-normal);
+                color: var(--text-muted);
+                margin-top: 6px;
             }
 
-            .${m}-test-btn {
-                padding: 6px 10px;
-                font-size: 0.7rem;
-                border: 1px solid var(--background-modifier-border);
-                border-radius: 4px;
+            .${m}-help-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+
+            .${m}-help-card {
+                padding: 14px;
                 background: var(--background-primary);
-                color: var(--text-normal);
+                border-radius: 8px;
+                border: 1px solid var(--background-modifier-border);
+                transition: border-color 0.2s ease;
+            }
+
+            .${m}-help-card:hover {
+                border-color: var(--interactive-accent);
+            }
+
+            .${m}-help-card h4 {
+                margin: 0 0 6px 0;
+                font-size: 0.95rem;
+            }
+
+            .${m}-help-card p {
+                margin: 0;
+                font-size: 0.85rem;
+                color: var(--text-muted);
+            }
+
+            .${m}-help-card a {
+                color: var(--link-color);
+            }
+
+            .${m}-drawer {
+                margin-bottom: 24px;
+                border-radius: 12px;
+                border: 1px solid var(--background-modifier-border);
+                overflow: hidden;
+            }
+
+            .${m}-drawer-header {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 16px 20px;
+                background: var(--background-secondary);
                 cursor: pointer;
-                transition: all 0.15s ease;
+                user-select: none;
+                transition: background 0.2s ease;
             }
 
-            .${m}-test-btn:hover {
+            .${m}-drawer-header:hover {
+                background: var(--background-secondary-alt);
+            }
+
+            .${m}-drawer-icon {
+                font-size: 1.3rem;
+            }
+
+            .${m}-drawer-title {
+                margin: 0;
+                font-size: 1.1rem;
+                font-weight: 600;
+                flex: 1;
+            }
+
+            .${m}-drawer-arrow {
+                font-size: 0.9rem;
+                transition: transform 0.3s ease;
+                color: var(--text-muted);
+            }
+
+            .${m}-drawer.is-open .${m}-drawer-arrow {
+                transform: rotate(180deg);
+            }
+
+            .${m}-drawer-content {
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease;
+                background: var(--background-secondary);
+            }
+
+            .${m}-drawer.is-open .${m}-drawer-content {
+                max-height: 2000px;
+            }
+
+            .${m}-drawer-inner {
+                padding: 0 20px 20px 20px;
+            }
+
+            .${m}-api-key-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .${m}-api-key-row .setting-item-control {
+                flex-wrap: nowrap;
+            }
+
+            .${m}-validate-btn {
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 0.8rem;
+                cursor: pointer;
+                border: 1px solid var(--background-modifier-border);
+                background: var(--background-primary);
+                color: var(--text-normal);
+                transition: all 0.2s ease;
+                white-space: nowrap;
+            }
+
+            .${m}-validate-btn:hover {
                 background: var(--background-modifier-hover);
                 border-color: var(--interactive-accent);
             }
 
-            .${m}-test-btn.success {
+            .${m}-validate-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+
+            .${m}-validate-btn.is-success {
                 background: #22c55e;
                 color: white;
                 border-color: #22c55e;
             }
 
-            .${m}-test-btn.error {
+            .${m}-validate-btn.is-error {
                 background: #ef4444;
                 color: white;
                 border-color: #ef4444;
@@ -677,12 +722,12 @@ ${t}_GROQ_API_KEY=your_groq_api_key_here
             min-height: 30px;
         `,[{value:"Google Gemini",text:"Google"},{value:"Groq",text:"Groq"},{value:"Hugging Face",text:"HuggingFace"},{value:"OpenRouter",text:"OpenRouter"},{value:"Ollama",text:"Ollama"}].forEach(x=>{let y=this.providerSelect.createEl("option");y.value=x.value,y.textContent=x.text});let d=E.getSmartDefaultProvider()||"Google Gemini";this.providerSelect.value=d,this.selectedProvider=d,this.providerSelect.addEventListener("change",async()=>{var x;if(this.selectedProvider=(x=this.providerSelect)==null?void 0:x.value,console.log("[YT-CLIPPER] Provider changed to:",this.selectedProvider),this.options.fetchModelsForProvider)try{console.log("[YT-CLIPPER] Fetching models for provider:",this.selectedProvider);let y=await this.options.fetchModelsForProvider(this.selectedProvider||"",!0);if(console.log("[YT-CLIPPER] Fetched models:",(y==null?void 0:y.length)||0),y&&y.length>0){console.log("[YT-CLIPPER] Models list:",JSON.stringify(y,null,2));let b={...this.options.modelOptions,[this.selectedProvider]:y};this.options.modelOptions=b,this.updateModelDropdown(b),console.log("[YT-CLIPPER] Updated dropdown with",y.length,"models")}else console.warn("[YT-CLIPPER] No models returned, using fallback"),this.updateModelDropdown(this.options.modelOptions)}catch(y){console.error("[YT-CLIPPER] Provider fetch failed:",y),this.updateModelDropdown(this.options.modelOptions)}else this.options.modelOptions&&(console.warn("[YT-CLIPPER] No fetch function available, using cached models"),this.updateModelDropdown(this.options.modelOptions));this.updateRefreshButtonTooltip(),E.setPreference("lastProvider",this.selectedProvider)});let h=e.createDiv();h.style.cssText=`
             position: relative;
-        `;let d=h.createDiv();d.style.cssText=`
+        `;let p=h.createDiv();p.style.cssText=`
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 2px;
-        `;let g=d.createDiv();g.textContent="Model",g.style.cssText=`
+        `;let g=p.createDiv();g.textContent="Model",g.style.cssText=`
             font-weight: 500;
             color: var(--text-muted);
             font-size: 0.65rem;
@@ -774,7 +819,7 @@ ${t}_GROQ_API_KEY=your_groq_api_key_here
             font-size: 0.75rem;
             color: var(--text-muted);
             margin-top: 4px;
-        `,o.textContent="0 characters",this.customPromptInput.addEventListener("input",()=>{var c,u;let a=(u=(c=this.customPromptInput)==null?void 0:c.value.length)!=null?u:0;o.textContent=`${a} character${a!==1?"s":""}`})}toggleCustomPromptVisibility(){this.customPromptContainer&&(this.format==="custom"?(this.customPromptContainer.style.display="block",setTimeout(()=>{var e;(e=this.customPromptInput)==null||e.focus()},100)):this.customPromptContainer.style.display="none")}createFallbackToggle(e){var h;let r=e.createDiv();r.style.cssText=`
+        `,o.textContent="0 characters",this.customPromptInput.addEventListener("input",()=>{var c,d;let a=(d=(c=this.customPromptInput)==null?void 0:c.value.length)!=null?d:0;o.textContent=`${a} character${a!==1?"s":""}`})}toggleCustomPromptVisibility(){this.customPromptContainer&&(this.format==="custom"?(this.customPromptContainer.style.display="block",setTimeout(()=>{var e;(e=this.customPromptInput)==null||e.focus()},100)):this.customPromptContainer.style.display="none")}createFallbackToggle(e){var h;let r=e.createDiv();r.style.cssText=`
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -810,7 +855,7 @@ ${t}_GROQ_API_KEY=your_groq_api_key_here
             cursor: pointer;
             transition: background 0.2s ease;
             outline: none;
-        `;let a=()=>{var d;(d=this.fallbackToggle)!=null&&d.checked?(this.fallbackToggle.style.background="var(--ytc-accent)",this.fallbackToggle.style.boxShadow="0 0 10px rgba(45, 212, 191, 0.4)"):(this.fallbackToggle.style.background="var(--ytc-border)",this.fallbackToggle.style.boxShadow="none")},c=o.createDiv();c.style.cssText=`
+        `;let a=()=>{var p;(p=this.fallbackToggle)!=null&&p.checked?(this.fallbackToggle.style.background="var(--ytc-accent)",this.fallbackToggle.style.boxShadow="0 0 10px rgba(45, 212, 191, 0.4)"):(this.fallbackToggle.style.background="var(--ytc-border)",this.fallbackToggle.style.boxShadow="none")},c=o.createDiv();c.style.cssText=`
             position: absolute;
             top: 2px;
             left: 2px;
